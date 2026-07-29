@@ -1,13 +1,13 @@
 {
   "name": "@summonghost/memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Canonical relationship-memory contracts and pure helpers",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/ferdousbhai/ghostkit.git",
+    "url": "git+https://github.com/ferdousbhai/ghostkit.git",
     "directory": "packages/memory"
   },
   "homepage": "https://github.com/ferdousbhai/ghostkit#readme",
