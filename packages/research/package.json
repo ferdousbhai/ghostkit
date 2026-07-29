@@ -1,7 +1,7 @@
 {
   "name": "@summonghost/research",
-  "version": "0.1.1",
-  "description": "Provider-neutral research tool contracts and result formatting",
+  "version": "0.1.2",
+  "description": "Research tool contracts, X-search adapters, and result formatting",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -34,8 +34,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@ai-sdk/xai": "^3.0.83",
+    "ai": "^6.0.172",
     "typescript": "^6.0.3",
     "vitest": "^4.1.4"
+  },
+  "peerDependencies": {
+    "@ai-sdk/xai": "^3.0.83",
+    "ai": "^6.0.172"
   },
   "publishConfig": {
     "access": "public",
