@@ -1,0 +1,44 @@
+{
+  "name": "@summonghost/research",
+  "version": "0.1.0",
+  "description": "Provider-neutral research tool contracts and result formatting",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ferdousbhai/ghostkit.git",
+    "directory": "packages/research"
+  },
+  "homepage": "https://github.com/ferdousbhai/ghostkit#readme",
+  "bugs": {
+    "url": "https://github.com/ferdousbhai/ghostkit/issues"
+  },
+  "files": [
+    "dist",
+    "src/index.ts"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pack:check": "pnpm pack --pack-destination ../../dist"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

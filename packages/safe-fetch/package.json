@@ -1,0 +1,44 @@
+{
+  "name": "@summonghost/safe-fetch",
+  "version": "0.1.0",
+  "description": "Bounded SSRF-resistant public URL fetching for Cloudflare Workers",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ferdousbhai/ghostkit.git",
+    "directory": "packages/safe-fetch"
+  },
+  "homepage": "https://github.com/ferdousbhai/ghostkit#readme",
+  "bugs": {
+    "url": "https://github.com/ferdousbhai/ghostkit/issues"
+  },
+  "files": [
+    "dist",
+    "src/index.ts"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pack:check": "pnpm pack --pack-destination ../../dist"
+  },
+  "dependencies": {
+    "ipaddr.js": "^2.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

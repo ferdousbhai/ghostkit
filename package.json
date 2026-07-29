@@ -1,0 +1,33 @@
+{
+  "name": "ghostkit",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Provider-neutral TypeScript building blocks shared across SummonGhost applications",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ferdousbhai/ghostkit.git"
+  },
+  "packageManager": "pnpm@11.5.3",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --recursive --if-present run build",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "pack:check": "pnpm --recursive --if-present run pack:check",
+    "test": "pnpm --recursive --if-present run test",
+    "typecheck": "pnpm --recursive --if-present run typecheck",
+    "lint": "pnpm exec prettier --check .",
+    "lint:fix": "pnpm exec prettier --write .",
+    "validate": "pnpm typecheck && pnpm test && pnpm build && pnpm pack:check && pnpm lint"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.1",
+    "prettier": "^3.6.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  }
+}
