@@ -22,6 +22,7 @@
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "lint": "pnpm exec prettier --check .",
     "lint:fix": "pnpm exec prettier --write .",
+    "release:publish": "node scripts/publish-packages.mjs",
     "validate": "pnpm typecheck && pnpm test && pnpm build && pnpm pack:check && pnpm lint"
   },
   "devDependencies": {
