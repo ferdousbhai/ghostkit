@@ -9,9 +9,17 @@ package tarballs.
 | `src/lib/agent/memory-block.ts` pure memory helpers           | `@summonghost/memory`                               | SummonGhost          | done   |               -62 |
 | Pure helpers/types in `src/lib/memory/relationship-memory.ts` | `@summonghost/memory`                               | SummonGhost          | done   |   included below¹ |
 | Ask Dan row-memory compaction/write logic                     | `@summonghost/memory` canonical document + Workflow | Ask Dan              | done   |             +531² |
-| Duplicate URL validation/fetching                             | `@summonghost/safe-fetch`                           | SummonGhost, Ask Dan | done   | included in audit |
+| Duplicate URL validation and response bounds                  | `@summonghost/research` primitives                  | SummonGhost, Ask Dan | done   | included in audit |
 | Combined `search_online` implementations                      | Separate `@summonghost/research` tools              | SummonGhost, Ask Dan | done   | included in audit |
+| Duplicate Exa request/result adapters                         | Shared Exa executor                                 | SummonGhost, Ask Dan | done   | included in audit |
+| Ask Dan Grok handoff, routing, and native-X runtime           | Shared `@summonghost/research` Grok capability      | Ask Dan              | done   | included in audit |
+| Duplicate Reddit listing schemas and post normalization       | Shared Reddit parser                                | SummonGhost, Ask Dan | done   | included in audit |
+| Duplicate `remember` and memory-mutation schemas              | `@summonghost/memory` schemas                       | SummonGhost, Ask Dan | done   | included in audit |
+| Duplicate Ask Dan compaction instructions                     | `@dan/agent-core`                                   | Ask Dan              | done   |                -6 |
 | Duplicate context threshold/checkpoint helpers                | `@summonghost/compaction`                           | all three            | done   | included in audit |
+| Ask Dan effective-history and compaction scheduling state     | Shared provider-neutral compaction controller       | Ask Dan              | done   | included in audit |
+| xAI native compact/tokenize request and response helpers      | Shared xAI adapter with injected app transport      | SummonGhost          | done   | included in audit |
+| Tool-result stable keys, bounded cache, and text pagination   | `@summonghost/research` primitives                  | SummonGhost          | done   | included in audit |
 
 ¹ The first SummonGhost adoption deletes 243 and adds 284 production lines
 (net +41) when the new 126-line Workflow adapter is included. The shared
@@ -37,7 +45,7 @@ The extraction removes 1,105 lines of consumer production code, including the
 old combined-search helpers and local memory utilities. It is not net-negative:
 the durable canonical-memory migration, Workflow retry/CAS infrastructure,
 proactive background compaction, stale-result guards, billing, and distinct
-research adapters add more code than they replace.
+application-owned research execution add more code than they replace.
 
 That is a deliberate exception to the original deletion target, not a hidden
 success metric. Further deletion should come from simplifying application

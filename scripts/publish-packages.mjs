@@ -19,12 +19,17 @@ for (const directory of packageDirectories) {
   const packageDirectory = fileURLToPath(
     new URL(`${directory}/`, packagesRoot),
   );
-  const manifest = JSON.parse(
-    await readFile(
-      new URL("package.json", new URL(`${directory}/`, packagesRoot)),
-      "utf8",
-    ),
+  const manifestUrl = new URL(
+    "package.json",
+    new URL(`${directory}/`, packagesRoot),
   );
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(manifestUrl, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") continue;
+    throw error;
+  }
   const packageSpec = `${manifest.name}@${manifest.version}`;
 
   if (!dryRun && packageVersionExists(packageSpec)) {

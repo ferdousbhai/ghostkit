@@ -1,7 +1,7 @@
 {
   "name": "@summonghost/research",
-  "version": "0.1.3",
-  "description": "Research tool contracts, X-search adapters, and result formatting",
+  "version": "0.1.4",
+  "description": "Shared research tools, bounded readers, and result pagination primitives",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -17,6 +17,9 @@
   "files": [
     "dist",
     "src/index.ts",
+    "src/exa-search.ts",
+    "src/pagination.ts",
+    "src/reddit.ts",
     "src/x-search.ts"
   ],
   "exports": {
@@ -32,11 +35,17 @@
     "pack:check": "pnpm pack --pack-destination ../../dist"
   },
   "dependencies": {
+    "ipaddr.js": "^2.4.0",
     "zod": "^4.4.3"
   },
+  "peerDependencies": {
+    "@ai-sdk/xai": ">=3.0.83 <4",
+    "ai": ">=6.0.172 <7"
+  },
   "devDependencies": {
-    "@ai-sdk/xai": "^3.0.83",
-    "ai": "^6.0.172",
+    "@ai-sdk/xai": "3.0.83",
+    "ai": "6.0.172",
+    "exa-js": "^2.16.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   },

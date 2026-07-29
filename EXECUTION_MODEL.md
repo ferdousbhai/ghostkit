@@ -1,14 +1,21 @@
 # Background execution decision
 
+Choose the primitive from the durable state owner, not from retry or duration
+requirements: use an Agent Fiber when the work belongs to one Agent, and use a
+Workflow when it belongs to the application or another owner outside that
+Agent.
+
 ## Relationship memory
 
-Use Cloudflare Workflows.
+The shared package does not choose the execution primitive. Use an Agent Fiber
+when one Agent owns the relationship-memory request and lifecycle; use a
+Workflow when the application owns them independently of any Agent.
 
-The `remember` call awaits only Workflow creation, which is the durable
-acceptance boundary. Compaction and the canonical-document write run after the
-active turn. Deterministic instance IDs, idempotent mutation operations, and
-revision checks make retries safe. No prompt-visible uncompacted tail exists;
-prompts read only the last committed canonical document.
+In either case, the `remember` call awaits only durable acceptance. Compaction
+and the canonical-document write run after the active turn. Stable operation
+IDs, idempotent repository commits, and revision checks make retries safe. No
+prompt-visible uncompacted tail exists; prompts read only the last committed
+canonical document.
 
 ## Conversation context
 
@@ -23,9 +30,10 @@ Use the shared threshold policy with application-owned provider adapters:
 Agent `startFiber()` is appropriate for this single-Agent optimization: it
 stores a retained record before returning and keeps work alive after the
 calling function ends. Recovery of an evicted closure is application-defined.
-A Workflow is preferable if a particular conversation compaction must have
-automatic retries and guaranteed completion rather than relying on the
-hard-limit fallback.
+Because the conversation and its compaction checkpoint belong to that Agent,
+stronger retry or completion requirements must be implemented through Fiber
+recovery, idempotency, and the synchronous hard-limit fallback; they do not
+change ownership or make the work a Workflow.
 
 ## Detached sub-agents
 

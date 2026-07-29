@@ -1,19 +1,20 @@
 # Ghostkit
 
-Build-time TypeScript packages for Cloudflare Workers and AI applications.
-Applications bundle these packages into their own Cloudflare Worker; there is no
-shared runtime service or network hop.
+Reusable TypeScript packages for Cloudflare AI applications. Applications
+bundle these packages into their own Worker; there is no shared runtime service
+or network hop.
 
 ## Packages
 
-- `@summonghost/memory` — canonical relationship-memory document contracts and pure
-  mutation/validation helpers.
+- `@summonghost/memory` — canonical relationship-memory document contracts,
+  tool/workflow schemas, and pure mutation/validation helpers.
 - `@summonghost/compaction` — provider-neutral proactive/hard-limit conversation
-  compaction policy, stable deduplication keys, and stale-write guards.
-- `@summonghost/research` — separate `web_search`, `read_url`, `x_search`, and
-  `reddit_search` contracts, native/delegated X adapters, and result formatting.
-- `@summonghost/safe-fetch` — bounded public-URL validation, redirect revalidation,
-  and streamed response readers.
+  compaction controller and policy, plus an xAI-native adapter with
+  consumer-injected authenticated transport.
+- `@summonghost/research` — separate research tools, shared Exa/Reddit
+  primitives, reusable Grok native-X execution and `handoff_to_grok`, public
+  HTTPS URL admission, bounded response readers, and provider-neutral result
+  pagination/cache primitives.
 
 ## Commands
 
@@ -34,9 +35,12 @@ Each consumer bundles the imported code into its own Cloudflare Worker.
 ## Execution boundary
 
 These are build-time packages only. Each application bundles the used code into
-its own Worker; no request crosses to a shared runtime service.
+its own Worker; no request crosses to a Ghostkit service. Provider runtimes such
+as Exa and Grok execute from the consuming Worker with consumer-injected
+clients, models, or authenticated transports.
 
-Relationship-memory compaction is application-owned Cloudflare Workflow work.
+Relationship-memory execution follows its durable owner: Agent-owned work uses
+a Fiber, while application-owned work uses a Cloudflare Workflow.
 Conversation-context pre-compaction uses Agent fibers where it is a
 single-Agent optimization, with a synchronous hard-limit fallback. Detached
 sub-agents are reserved for delegated, model-driven jobs with their own

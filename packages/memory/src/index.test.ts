@@ -2,20 +2,51 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_RELATIONSHIP_MEMORY_LENGTH,
   RelationshipMemoryCapacityError,
+  RelationshipMemoryConflictError,
   applyRelationshipMemoryMutation,
   assertExpectedRelationshipMemoryRevision,
   containsExactMemoryBlock,
   countMemoryOccurrences,
+  executeRelationshipMemoryOperation,
   formatMemoryLines,
   formatRelationshipMemoryContext,
   mergeMemoryEntries,
   normalizeRelationshipMemoryDocument,
   parseMemoryBlock,
+  relationshipMemoryMutationSchema,
+  rememberInputSchema,
   shouldCompactRelationshipMemory,
   validateRelationshipMemoryCompaction,
+  type RelationshipMemoryCommitInput,
+  type RelationshipMemoryDocument,
+  type RelationshipMemoryRepository,
 } from "./index.js";
 
 describe("@summonghost/memory", () => {
+  it("shares the remember tool and workflow mutation contracts", () => {
+    expect(
+      rememberInputSchema.safeParse({ content: "Prefers concise replies." })
+        .success,
+    ).toBe(true);
+    expect(
+      rememberInputSchema.safeParse({
+        content: "",
+        replaces: "Prefers detailed replies.",
+      }).success,
+    ).toBe(true);
+    expect(rememberInputSchema.safeParse({ content: "" }).success).toBe(false);
+    expect(
+      rememberInputSchema.safeParse({ content: "two\nmemories" }).success,
+    ).toBe(false);
+    expect(
+      relationshipMemoryMutationSchema.safeParse({
+        kind: "replace",
+        oldText: "tea",
+        newText: "coffee",
+      }).success,
+    ).toBe(true);
+  });
+
   it("parses plain text and legacy JSON memory blocks", () => {
     expect(
       parseMemoryBlock("# Memory\n- Likes tea.\n* Uses metric units."),
@@ -162,4 +193,125 @@ describe("@summonghost/memory", () => {
       maxLength: MAX_RELATIONSHIP_MEMORY_LENGTH,
     });
   });
+
+  it("executes mutation and compaction through repository-neutral ports", async () => {
+    const repository = memoryRepository(
+      "x".repeat(MAX_RELATIONSHIP_MEMORY_LENGTH - 5),
+    );
+    const result = await executeRelationshipMemoryOperation({
+      repository,
+      operationId: "remember-1",
+      operation: {
+        kind: "mutate",
+        mutation: { kind: "append", content: "new preference" },
+      },
+      compactor: async ({ maximumLength, sourceContent }) => {
+        expect(maximumLength).toBe(MAX_RELATIONSHIP_MEMORY_LENGTH - 1);
+        expect(sourceContent).toContain("new preference");
+        return "Condensed preferences including the new preference.";
+      },
+    });
+
+    expect(result).toMatchObject({
+      status: "applied",
+      compacted: true,
+      attempts: 1,
+      document: { revision: 2 },
+    });
+    expect((await repository.read()).content).toContain("new preference");
+  });
+
+  it("retries compare-and-swap conflicts and recognizes durable replays", async () => {
+    const repository = memoryRepository("- Likes tea.", 1);
+    const input = {
+      repository,
+      operationId: "correct-1",
+      operation: {
+        kind: "mutate" as const,
+        mutation: {
+          kind: "replace" as const,
+          oldText: "tea",
+          newText: "coffee",
+        },
+      },
+    };
+
+    await expect(
+      executeRelationshipMemoryOperation(input),
+    ).resolves.toMatchObject({
+      status: "applied",
+      attempts: 2,
+    });
+    await expect(
+      executeRelationshipMemoryOperation(input),
+    ).resolves.toMatchObject({
+      status: "already_applied",
+    });
+  });
+
+  it("fails after the configured conflict budget", async () => {
+    const repository = memoryRepository(
+      "- Likes tea.",
+      Number.POSITIVE_INFINITY,
+    );
+    await expect(
+      executeRelationshipMemoryOperation({
+        repository,
+        operationId: "append-1",
+        operation: {
+          kind: "mutate",
+          mutation: { kind: "append", content: "Uses metric units." },
+        },
+        maxAttempts: 2,
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<RelationshipMemoryConflictError>>({
+        code: "relationship_memory_conflict",
+        attempts: 2,
+      }),
+    );
+  });
 });
+
+function memoryRepository(
+  content: string,
+  conflictsBeforeCommit = 0,
+): RelationshipMemoryRepository {
+  let document: RelationshipMemoryDocument = {
+    ownerId: "owner-1",
+    visitorUserId: "visitor-1",
+    content,
+    revision: 1,
+    createdAt: "2026-07-29T00:00:00.000Z",
+    updatedAt: "2026-07-29T00:00:00.000Z",
+  };
+  let conflicts = 0;
+  const applied = new Set<string>();
+
+  return {
+    async read() {
+      return { ...document };
+    },
+    async wasOperationApplied(operationId) {
+      return applied.has(operationId);
+    },
+    async commit(input: RelationshipMemoryCommitInput) {
+      if (
+        input.expectedRevision !== document.revision ||
+        conflicts < conflictsBeforeCommit
+      ) {
+        conflicts += 1;
+        return { status: "conflict" };
+      }
+      const now = "2026-07-29T00:00:01.000Z";
+      document = {
+        ...document,
+        content: input.content,
+        revision: document.revision + 1,
+        updatedAt: now,
+      };
+      applied.add(input.operationId);
+      return { status: "committed", document: { ...document } };
+    },
+  };
+}
