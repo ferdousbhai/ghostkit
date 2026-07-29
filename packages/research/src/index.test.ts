@@ -15,6 +15,7 @@ import {
   readUrlInputSchema,
   redditSearchInputSchema,
   webSearchInputSchema,
+  xSearchInputSchema,
   xSearchOutputSchema,
 } from "./index.js";
 

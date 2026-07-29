@@ -6,6 +6,7 @@ import {
   type LanguageModel,
   type LanguageModelUsage,
   type ModelMessage,
+  type Tool,
   type ToolSet,
 } from "ai";
 import { z } from "zod";
@@ -15,6 +16,13 @@ export const X_SEARCH_MAX_TEXT_CHARACTERS = 25_000;
 export const GROK_HANDOFF_TOOL_NAME = "handoff_to_grok" as const;
 export const GROK_X_SEARCH_HANDOFF_RESULT_KIND =
   "grok_x_search_handoff" as const;
+
+export const xSearchInputSchema = z.strictObject({
+  query: z.string().trim().min(1).max(2_000),
+  from_date: z.iso.date().optional(),
+  to_date: z.iso.date().optional(),
+  depth: z.enum(["quick", "default", "deep"]).default("default"),
+});
 
 const xSearchEngagementSchema = z
   .strictObject({
@@ -64,6 +72,16 @@ export const xSearchOutputSchema = z.strictObject({
 });
 
 export type XSearchItem = z.infer<typeof xSearchOutputSchema>["items"][number];
+export type XSearchInput = z.infer<typeof xSearchInputSchema>;
+
+export type XSearchResult = Readonly<{
+  text: string;
+  url: string;
+  author: string;
+  date: string | null;
+  likes: number | null;
+  reposts: number | null;
+}>;
 
 const xHandleSchema = z
   .string()
@@ -128,6 +146,73 @@ export type GrokXSearchHandoffInput = z.infer<
 export type NativeXSearchToolOptions = Parameters<
   XaiProvider["tools"]["xSearch"]
 >[0];
+export type NativeXSearchOptions = NativeXSearchToolOptions;
+
+export function createNativeXSearchTool(
+  options: NativeXSearchOptions = {},
+): ReturnType<typeof xSearch> {
+  return xSearch(options);
+}
+
+export interface DelegatedXSearchOptions {
+  model: LanguageModel;
+  timeoutMs?: number;
+  nativeToolOptions?: NativeXSearchOptions;
+}
+
+const DEPTH_LIMITS = {
+  quick: { min: 8, max: 12 },
+  default: { min: 15, max: 25 },
+  deep: { min: 40, max: 60 },
+} as const;
+
+/**
+ * Backward-compatible delegated X-search tool. New orchestration can use
+ * `runNativeXSearch` or `createHandoffToGrokTool` directly.
+ */
+export function createDelegatedXSearchTool(
+  options: DelegatedXSearchOptions,
+): Tool<XSearchInput, XSearchResult[]> {
+  return tool({
+    description:
+      "Search current public posts on X using xAI's native X search.",
+    inputSchema: xSearchInputSchema,
+    execute: async (input, execution): Promise<XSearchResult[]> => {
+      const limits = DEPTH_LIMITS[input.depth];
+      const run = await runNativeXSearch({
+        abortSignal: execution.abortSignal,
+        maxItems: limits.max,
+        model: options.model,
+        nativeToolOptions: {
+          ...options.nativeToolOptions,
+          ...(input.from_date && { fromDate: input.from_date }),
+          ...(input.to_date && { toDate: input.to_date }),
+        },
+        prompt: [
+          `Search X for posts about: ${input.query}`,
+          input.from_date || input.to_date
+            ? `Focus on posts from ${input.from_date ?? "the earliest available date"} through ${input.to_date ?? "now"}.`
+            : null,
+          `Find ${limits.min}-${limits.max} high-quality, relevant posts.`,
+          "Prefer substantive posts with high engagement. Include diverse voices.",
+        ]
+          .filter((part): part is string => Boolean(part))
+          .join("\n\n"),
+        ...(options.timeoutMs !== undefined && {
+          timeoutMs: options.timeoutMs,
+        }),
+      });
+      return run.items.map((item) => ({
+        text: item.text.trim().slice(0, 500),
+        url: item.url,
+        author: item.author_handle ?? "",
+        date: item.date,
+        likes: item.engagement?.likes ?? null,
+        reposts: item.engagement?.reposts ?? null,
+      }));
+    },
+  });
+}
 
 export interface RunNativeXSearchOptions {
   abortSignal?: AbortSignal;

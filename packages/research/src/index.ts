@@ -13,7 +13,9 @@ export {
   type TextPage,
 } from "./pagination.js";
 export {
+  createDelegatedXSearchTool,
   createHandoffToGrokTool,
+  createNativeXSearchTool,
   extractGrokHandoffText,
   GROK_HANDOFF_TOOL_NAME,
   GROK_X_SEARCH_HANDOFF_RESULT_KIND,
@@ -23,16 +25,21 @@ export {
   runNativeXSearch,
   runNativeXSearchAnswer,
   shouldRouteDirectlyToGrokXSearch,
+  xSearchInputSchema,
   xSearchOutputSchema,
   type CreateHandoffToGrokToolOptions,
+  type DelegatedXSearchOptions,
   type GrokXSearchHandoffInput,
   type GrokXSearchHandoffResult,
   type NativeXSearchAnswer,
+  type NativeXSearchOptions,
   type NativeXSearchRun,
   type NativeXSearchToolOptions,
   type RunNativeXSearchAnswerOptions,
   type RunNativeXSearchOptions,
+  type XSearchInput,
   type XSearchItem,
+  type XSearchResult,
 } from "./x-search.js";
 export {
   executeExaSearch,
