@@ -1,6 +1,6 @@
 {
   "name": "@summonghost/research",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Research tool contracts, X-search adapters, and result formatting",
   "license": "MIT",
   "type": "module",
@@ -16,7 +16,8 @@
   },
   "files": [
     "dist",
-    "src/index.ts"
+    "src/index.ts",
+    "src/x-search.ts"
   ],
   "exports": {
     ".": {
