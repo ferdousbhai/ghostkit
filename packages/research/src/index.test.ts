@@ -1,15 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  assertPublicHttpsUrl,
+  buildRedditSearchQuery,
+  buildRedditSearchUrl,
+  executeExaSearch,
   formatReadUrlResults,
   formatWebSearchResults,
   createNativeXSearchTool,
   isBlockedWebSearchResult,
   mapExaCategory,
   normalizeSearchQueries,
+  parseRedditSearchResults,
+  readBoundedText,
   readUrlInputSchema,
   redditSearchInputSchema,
   webSearchInputSchema,
-  xSearchInputSchema,
+  xSearchOutputSchema,
 } from "./index.js";
 
 describe("research contracts", () => {
@@ -23,9 +29,64 @@ describe("research contracts", () => {
     expect(
       readUrlInputSchema.safeParse({ urls: ["https://example.com"] }).success,
     ).toBe(true);
+    expect(
+      readUrlInputSchema.safeParse({ urls: ["http://example.com"] }).success,
+    ).toBe(false);
     expect(readUrlInputSchema.safeParse({ query: "example" }).success).toBe(
       false,
     );
+  });
+
+  it("bounds and validates X search contracts", () => {
+    expect(
+      xSearchOutputSchema.safeParse({
+        items: [
+          {
+            author_handle: "@cloudflare",
+            date: "2026-07-29",
+            engagement: { likes: 42, reposts: 7 },
+            text: "Durable agents",
+            url: "https://x.com/cloudflare/status/1",
+          },
+        ],
+      }),
+    ).toMatchObject({
+      success: true,
+      data: {
+        items: [{ author_handle: "cloudflare" }],
+      },
+    });
+    for (const invalid of [
+      { url: "not a URL" },
+      { date: "yesterday" },
+      { engagement: { likes: -1, reposts: 0 } },
+    ]) {
+      expect(
+        xSearchOutputSchema.safeParse({
+          items: [
+            {
+              author_handle: "cloudflare",
+              date: "2026-07-29",
+              engagement: { likes: 1, reposts: 0 },
+              text: "Durable agents",
+              url: "https://x.com/cloudflare/status/1",
+              ...invalid,
+            },
+          ],
+        }).success,
+      ).toBe(false);
+    }
+    expect(
+      xSearchOutputSchema.safeParse({
+        items: Array.from({ length: 61 }, (_, index) => ({
+          author_handle: "cloudflare",
+          date: "2026-07-29",
+          engagement: null,
+          text: `post ${index}`,
+          url: `https://x.com/cloudflare/status/${index}`,
+        })),
+      }).success,
+    ).toBe(false);
   });
 
   it("exposes bounded Exa capabilities without coupling the contract to its SDK", () => {
@@ -84,6 +145,85 @@ describe("research contracts", () => {
 });
 
 describe("research result helpers", () => {
+  it("executes Exa request mapping and normalizes provider content", async () => {
+    const search = vi.fn().mockResolvedValue({
+      results: [
+        {
+          id: "exa-1",
+          url: "https://example.com/article",
+          title: "Article",
+          highlights: ["Useful", "context"],
+        },
+      ],
+    });
+    const execution = await executeExaSearch(
+      { search } as never,
+      "cloudflare agents",
+      {
+        category: "publication",
+        content_mode: "highlights",
+        num_results: 5,
+        search_type: "deep",
+      },
+    );
+    expect(search).toHaveBeenCalledWith(
+      "cloudflare agents",
+      expect.objectContaining({
+        category: "publication",
+        contents: { highlights: true },
+        numResults: 5,
+        type: "deep",
+      }),
+    );
+    expect(execution).toEqual({
+      providerResultCount: 1,
+      results: [
+        expect.objectContaining({
+          id: "exa-1",
+          text: "Useful context",
+        }),
+      ],
+    });
+  });
+
+  it("shares Reddit query, URL, and result normalization", () => {
+    const input = redditSearchInputSchema.parse({
+      query: "agents",
+      subreddits: ["cloudflare", "typescript"],
+    });
+    expect(buildRedditSearchQuery(input)).toBe(
+      "agents (subreddit:cloudflare OR subreddit:typescript)",
+    );
+    expect(buildRedditSearchUrl(input).pathname).toBe("/search.json");
+    expect(
+      parseRedditSearchResults(
+        {
+          data: {
+            children: [
+              {
+                data: {
+                  author: "ghost",
+                  created_utc: 1,
+                  id: "post-1",
+                  permalink: "/r/cloudflare/comments/post-1/example",
+                  subreddit: "cloudflare",
+                  title: "Example",
+                },
+              },
+            ],
+          },
+        },
+        1,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        author: "ghost",
+        title: "Example",
+        url: "https://www.reddit.com/r/cloudflare/comments/post-1/example",
+      }),
+    ]);
+  });
+
   it("filters malformed and known abusive results", () => {
     expect(isBlockedWebSearchResult({ url: "not a url" })).toBe(true);
     expect(
@@ -98,6 +238,12 @@ describe("research result helpers", () => {
         title: "Cloudflare",
       }),
     ).toBe(false);
+    expect(
+      isBlockedWebSearchResult({
+        url: "https://example.com",
+        summary: "leaked onlyfans photos",
+      }),
+    ).toBe(true);
   });
 
   it("formats escaped provider-neutral results", () => {
@@ -113,5 +259,41 @@ describe("research result helpers", () => {
     expect(
       formatReadUrlResults([{ url: "https://example.com", text: "page" }]),
     ).toContain('<fetched_pages count="1">');
+  });
+});
+
+describe("public URL boundaries", () => {
+  it.each([
+    "https://localhost/a",
+    "https://service.internal/a",
+    "https://127.0.0.1/a",
+    "https://10.0.0.1/a",
+    "https://169.254.169.254/a",
+    "https://[::1]/a",
+    "https://[fd00::1]/a",
+    "http://example.com/a",
+    "ftp://example.com/a",
+    "https://user:secret@example.com/a",
+  ])("rejects %s", (value) => {
+    expect(() => assertPublicHttpsUrl(value)).toThrow();
+  });
+
+  it("accepts public HTTPS URLs and strips fragments", () => {
+    expect(assertPublicHttpsUrl("https://example.com/a#secret")).toMatchObject({
+      hash: "",
+      hostname: "example.com",
+    });
+  });
+
+  it("rejects oversized declared and streamed responses", async () => {
+    await expect(
+      readBoundedText(
+        new Response("small", { headers: { "Content-Length": "100" } }),
+        10,
+      ),
+    ).rejects.toMatchObject({ code: "PublicUrlResponseTooLarge" });
+    await expect(
+      readBoundedText(new Response("too much"), 3),
+    ).rejects.toMatchObject({ code: "PublicUrlResponseTooLarge" });
   });
 });

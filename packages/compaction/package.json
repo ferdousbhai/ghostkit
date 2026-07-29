@@ -1,7 +1,7 @@
 {
   "name": "@summonghost/compaction",
-  "version": "0.1.1",
-  "description": "Provider-neutral proactive conversation-compaction policy",
+  "version": "0.1.2",
+  "description": "Conversation-compaction policy, controller, and xAI-native adapter",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -16,7 +16,8 @@
   },
   "files": [
     "dist",
-    "src/index.ts"
+    "src/index.ts",
+    "src/xai.ts"
   ],
   "exports": {
     ".": {

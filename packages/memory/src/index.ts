@@ -9,7 +9,48 @@ export const memoryLineSchema = z
   .min(1)
   .max(MAX_MEMORY_LINE_LENGTH);
 
+export const rememberInputSchema = z
+  .strictObject({
+    content: z
+      .string()
+      .max(MAX_MEMORY_LINE_LENGTH)
+      .regex(/^[^\r\n]*$/, "content must be one line")
+      .describe(
+        "One concise standalone memory. Use an empty string only to forget the exact passage in replaces.",
+      ),
+    replaces: z
+      .string()
+      .min(1)
+      .max(MAX_RELATIONSHIP_MEMORY_LENGTH)
+      .optional()
+      .describe(
+        "Exact current relationship-memory passage to correct or forget. Omit when adding a memory.",
+      ),
+  })
+  .superRefine((value, context) => {
+    if (value.replaces === undefined && !value.content.trim()) {
+      context.addIssue({
+        code: "custom",
+        message: "content is required when adding a memory",
+        path: ["content"],
+      });
+    }
+  });
+
+export const relationshipMemoryMutationSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("append"),
+    content: z.string(),
+  }),
+  z.strictObject({
+    kind: z.literal("replace"),
+    oldText: z.string(),
+    newText: z.string(),
+  }),
+]);
+
 export type ParsedMemory = string;
+export type RememberInput = z.infer<typeof rememberInputSchema>;
 
 export type RelationshipMemoryDocument = {
   ownerId: string;
@@ -20,21 +61,71 @@ export type RelationshipMemoryDocument = {
   updatedAt: string;
 };
 
-export type RelationshipMemoryMutation =
-  | {
-      kind: "append";
-      content: string;
-    }
-  | {
-      kind: "replace";
-      oldText: string;
-      newText: string;
-    };
+export type RelationshipMemoryMutation = z.infer<
+  typeof relationshipMemoryMutationSchema
+>;
 
 export type RelationshipMemoryMutationResult = {
   content: string;
   changed: boolean;
 };
+
+export type RelationshipMemoryOperation =
+  | {
+      kind: "mutate";
+      mutation: RelationshipMemoryMutation;
+    }
+  | {
+      kind: "compact";
+    };
+
+export type RelationshipMemoryCommitInput = {
+  operationId: string;
+  expectedRevision: number;
+  content: string;
+  compacted: boolean;
+};
+
+export type RelationshipMemoryCommitResult =
+  | {
+      status: "committed";
+      document: RelationshipMemoryDocument;
+    }
+  | {
+      status: "conflict";
+    };
+
+export interface RelationshipMemoryRepository {
+  read(): Promise<RelationshipMemoryDocument>;
+  wasOperationApplied(operationId: string): Promise<boolean>;
+  commit(
+    input: RelationshipMemoryCommitInput,
+  ): Promise<RelationshipMemoryCommitResult>;
+}
+
+export type RelationshipMemoryCompactor = (input: {
+  document: RelationshipMemoryDocument;
+  sourceContent: string;
+  maximumLength: number;
+}) => Promise<string>;
+
+export type RelationshipMemoryExecutionResult = {
+  status: "applied" | "unchanged" | "already_applied";
+  document: RelationshipMemoryDocument;
+  compacted: boolean;
+  attempts: number;
+};
+
+export class RelationshipMemoryConflictError extends Error {
+  readonly code = "relationship_memory_conflict" as const;
+
+  constructor(readonly attempts: number) {
+    super(
+      `Relationship memory changed concurrently after ${attempts} attempts`,
+    );
+    this.name = "RelationshipMemoryConflictError";
+  }
+}
 
 export class RelationshipMemoryCapacityError extends Error {
   readonly code = "relationship_memory_capacity" as const;
@@ -256,6 +347,101 @@ export function validateRelationshipMemoryCompaction(input: {
     );
   }
   return compactedContent;
+}
+
+/**
+ * Executes the repository-neutral relationship-memory state machine.
+ *
+ * Applications own storage, identity, authorization, billing, model calls,
+ * and background execution. This function owns mutation semantics, replay
+ * detection, compaction policy, validation, and optimistic retry behavior.
+ */
+export async function executeRelationshipMemoryOperation(input: {
+  repository: RelationshipMemoryRepository;
+  operationId: string;
+  operation: RelationshipMemoryOperation;
+  compactor?: RelationshipMemoryCompactor;
+  maxAttempts?: number;
+}): Promise<RelationshipMemoryExecutionResult> {
+  const operationId = input.operationId.trim();
+  if (!operationId)
+    throw new Error("Relationship-memory operation ID is required");
+
+  const maxAttempts = input.maxAttempts ?? 4;
+  if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1) {
+    throw new Error(
+      "Relationship-memory max attempts must be a positive integer",
+    );
+  }
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (await input.repository.wasOperationApplied(operationId)) {
+      return {
+        status: "already_applied",
+        document: await input.repository.read(),
+        compacted: false,
+        attempts: attempt,
+      };
+    }
+
+    const document = await input.repository.read();
+    const mutationResult =
+      input.operation.kind === "mutate"
+        ? applyRelationshipMemoryMutation(
+            document.content,
+            input.operation.mutation,
+            { allowAlreadyApplied: attempt > 1 },
+          )
+        : { content: document.content, changed: false };
+
+    let content = mutationResult.content;
+    let compacted = false;
+    const needsCompaction = shouldCompactRelationshipMemory(content);
+
+    if (needsCompaction) {
+      if (!input.compactor) {
+        throw new RelationshipMemoryCapacityError(
+          document.content.length,
+          content.length,
+        );
+      }
+      content = validateRelationshipMemoryCompaction({
+        sourceContent: content,
+        compactedContent: await input.compactor({
+          document,
+          sourceContent: content,
+          maximumLength: MAX_RELATIONSHIP_MEMORY_LENGTH - 1,
+        }),
+      });
+      compacted = true;
+    }
+
+    if (!mutationResult.changed && !compacted) {
+      return {
+        status: "unchanged",
+        document,
+        compacted: false,
+        attempts: attempt,
+      };
+    }
+
+    const commit = await input.repository.commit({
+      operationId,
+      expectedRevision: document.revision,
+      content,
+      compacted,
+    });
+    if (commit.status === "committed") {
+      return {
+        status: "applied",
+        document: commit.document,
+        compacted,
+        attempts: attempt,
+      };
+    }
+  }
+
+  throw new RelationshipMemoryConflictError(maxAttempts);
 }
 
 function parseJsonMemoryItem(item: unknown): string | null {

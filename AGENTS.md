@@ -1,13 +1,19 @@
 # Ghost Shared Packages
 
-This repository contains build-time TypeScript packages shared by SummonGhost,
-Ask Dan, and GhostBuild. Packages must not introduce runtime service calls.
+This repository contains build-time TypeScript packages shared by consuming
+applications. Packages are bundled into each consumer; Ghostkit does not run a
+shared network service.
 
 ## Boundaries
 
-- Keep application authentication, billing, persona prompts, provider credentials,
-  Durable Object classes, and database migrations in their owning applications.
-- Shared packages expose provider-neutral contracts and pure behavior.
+- Keep application authentication, billing, persona prompts, provider
+  credentials, Durable Object classes, and database migrations in their owning
+  applications.
+- Core packages expose provider-neutral contracts and pure behavior.
+- Provider-specific packages or modules may own reusable execution when their
+  coupling is explicit. Consumers must inject configured provider clients or
+  models; shared code must not read credentials or select an application's
+  gateway.
 - A package is adopted only by applications with a real product use for it.
 - Consumer adoption must delete the superseded local implementation.
 

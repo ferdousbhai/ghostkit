@@ -1,10 +1,11 @@
 # `@summonghost/research`
 
-Schemas and result formatting for separate `web_search`, `read_url`,
-`x_search`, and `reddit_search` tools.
+Reusable implementations, schemas, and result formatting for separate
+`web_search`, `read_url`, `x_search`, and `reddit_search` tools.
 
 ```ts
 import {
+  executeExaSearch,
   formatWebSearchResults,
   webSearchInputSchema,
 } from "@summonghost/research";
@@ -14,28 +15,91 @@ const input = webSearchInputSchema.parse({
   search_type: "auto",
 });
 
-const modelContext = formatWebSearchResults(input.query ?? "", results);
+const execution = await executeExaSearch(exa, input.query ?? "", input);
+const modelContext = formatWebSearchResults(
+  input.query ?? "",
+  execution.results,
+);
 ```
 
-X search supports two explicit execution paths:
+`executeExaSearch` owns Exa request mapping, content normalization, and common
+result filtering. Applications retain query fan-out, billing, credentials, and
+provenance.
+
+## Paginated result snapshots
+
+The package exports provider-neutral primitives for keeping a bounded,
+short-lived full result while returning deterministic character pages:
 
 ```ts
 import {
-  createDelegatedXSearchTool,
-  createNativeXSearchTool,
+  createPaginationCache,
+  paginateText,
+  stablePaginationKey,
 } from "@summonghost/research";
 
-// A Grok-backed main turn: no nested model call.
-const nativeXSearch = createNativeXSearchTool();
+const cache = createPaginationCache({
+  getEntries: () => agentState.toolPaginationCache,
+  setEntries: (entries) =>
+    setAgentState({ ...agentState, toolPaginationCache: entries }),
+});
 
-// A non-Grok main turn: run native X search through a caller-selected Grok model.
-const delegatedXSearch = createDelegatedXSearchTool({
-  model: xai.responses("grok-4.5"),
+const key = stablePaginationKey("web_search", providerInput);
+const fullResult = cache.get(key) ?? (await executeSearch(providerInput));
+cache.set(key, fullResult);
+
+const page = paginateText(fullResult, {
+  contentStart: input.content_start,
+  maxCharacters: input.max_characters,
+  maximumPageCharacters: 128_000,
 });
 ```
 
-Applications retain their own provider credentials, gateway routing, and model
-selection. The package never silently selects a model.
+`createPaginationCache` does not import Agent or application state. Consumers
+provide synchronous state accessors; Ghostkit validates, expires, repairs, and
+bounds the stored string entries. XML or UI rendering stays with the consumer.
 
-See [Ghostkit](https://github.com/ferdousbhai/ghostkit) for source and design
-notes.
+X research includes bounded contracts, structured native-X execution, a
+precision-biased direct-route classifier, and a reusable `handoff_to_grok` tool.
+The consumer injects its configured Grok model, so credentials, billing,
+gateway selection, and persona prompts remain at the deployment boundary.
+
+```ts
+import {
+  createHandoffToGrokTool,
+  extractGrokHandoffText,
+} from "@summonghost/research";
+
+const tools = {
+  handoff_to_grok: createHandoffToGrokTool({
+    model: xai.responses("grok-4.5"),
+    system: "Application-specific research guidance.",
+  }),
+};
+```
+
+The handoff gives Grok the conversation, forces xAI's native X tool, and
+returns Grok's final cited answer. `extractGrokHandoffText` lets the parent stop
+its tool loop and deliver that answer without another parent-model call.
+
+Reddit helpers share query construction, listing validation, and post
+normalization without forcing applications into one authentication or ranking
+strategy.
+
+The package also exposes two provider-neutral public-read boundaries:
+
+```ts
+import { assertPublicHttpsUrl, readBoundedText } from "@summonghost/research";
+
+const url = assertPublicHttpsUrl(input.url);
+const text = await readBoundedText(response, 2_000_000);
+```
+
+`assertPublicHttpsUrl` rejects non-HTTPS URLs, credentials, internal hostnames,
+and private IP literals. It does not perform DNS resolution or make a network
+request. Applications remain responsible for outbound transport security;
+Cloudflare Workers provide the public-only egress boundary used by the current
+consumers.
+
+`readBoundedText` consumes an existing standards-based `Response` under a byte
+limit. It does not initiate a request.

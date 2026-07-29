@@ -1,16 +1,65 @@
+import ipaddr from "ipaddr.js";
 import { z } from "zod";
 
 export {
-  createDelegatedXSearchTool,
-  createNativeXSearchTool,
-  xSearchInputSchema,
+  DEFAULT_PAGINATION_CACHE_MAX_CHARACTERS,
+  DEFAULT_PAGINATION_CACHE_MAX_ENTRIES,
+  DEFAULT_PAGINATION_CACHE_TTL_MS,
+  createPaginationCache,
+  paginateText,
+  stablePaginationKey,
+  type PaginationCache,
+  type PaginationCacheEntry,
+  type TextPage,
+} from "./pagination.js";
+export {
+  createHandoffToGrokTool,
+  extractGrokHandoffText,
+  GROK_HANDOFF_TOOL_NAME,
+  GROK_X_SEARCH_HANDOFF_RESULT_KIND,
+  X_SEARCH_MAX_RESULTS,
+  X_SEARCH_MAX_TEXT_CHARACTERS,
+  grokXSearchHandoffInputSchema,
+  runNativeXSearch,
+  runNativeXSearchAnswer,
+  shouldRouteDirectlyToGrokXSearch,
   xSearchOutputSchema,
-  type DelegatedXSearchOptions,
-  type NativeXSearchOptions,
-  type XSearchInput,
+  type CreateHandoffToGrokToolOptions,
+  type GrokXSearchHandoffInput,
+  type GrokXSearchHandoffResult,
+  type NativeXSearchAnswer,
+  type NativeXSearchRun,
+  type NativeXSearchToolOptions,
+  type RunNativeXSearchAnswerOptions,
+  type RunNativeXSearchOptions,
   type XSearchItem,
-  type XSearchResult,
 } from "./x-search.js";
+export {
+  executeExaSearch,
+  type ExecuteExaSearchOptions,
+  type ExaResearchResult,
+  type ExaSearchExecution,
+  type ExaSearchRequest,
+} from "./exa-search.js";
+export {
+  buildRedditSearchQuery,
+  buildRedditSearchUrl,
+  normalizeRedditPost,
+  parseRedditSearchResults,
+  redditListingSchema,
+  redditPostSchema,
+  type RedditPost,
+  type RedditSearchResult,
+} from "./reddit.js";
+
+const FORBIDDEN_PUBLIC_HOST_SUFFIXES = [
+  ".home.arpa",
+  ".internal",
+  ".invalid",
+  ".local",
+  ".localhost",
+  ".test",
+];
 
 export const WEB_SEARCH_TYPES = [
   "instant",
@@ -152,10 +201,21 @@ export const webSearchInputSchema = z
 
 export const readUrlInputSchema = z.strictObject({
   urls: z
-    .array(z.url().max(4_096))
+    .array(
+      z
+        .url()
+        .max(4_096)
+        .refine(
+          (value) =>
+            URL.canParse(value) && new URL(value).protocol === "https:",
+          {
+            message: "URL must use HTTPS",
+          },
+        ),
+    )
     .min(1)
     .max(5)
-    .describe("Public HTTP(S) pages to read. This tool does not search."),
+    .describe("Public HTTPS pages to read. This tool does not search."),
   max_characters: z
     .number()
     .int()
@@ -247,7 +307,7 @@ export function isBlockedWebSearchResult(result: ResearchResult): boolean {
   }
   if (ADULT_LEAK_DOMAIN_PATTERN.test(hostname)) return true;
   return ADULT_LEAK_TEXT_PATTERN.test(
-    [result.title, result.text].filter(Boolean).join(" "),
+    [result.title, result.text, result.summary].filter(Boolean).join(" "),
   );
 }
 
@@ -310,4 +370,92 @@ function formatResults(
   }
   lines.push(`</${root}>`);
   return lines.join("\n");
+}
+
+export function assertPublicHttpsUrl(value: string | URL): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch (cause) {
+    throw new ResearchBoundaryError("InvalidPublicUrl", { cause });
+  }
+  if (url.protocol !== "https:") {
+    throw new ResearchBoundaryError("PublicUrlProtocolRejected");
+  }
+  if (url.username || url.password) {
+    throw new ResearchBoundaryError("PublicUrlCredentialsRejected");
+  }
+  url.hash = "";
+  const hostname = url.hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
+  if (
+    hostname === "localhost" ||
+    hostname === "metadata.google.internal" ||
+    FORBIDDEN_PUBLIC_HOST_SUFFIXES.some((suffix) =>
+      hostname.endsWith(suffix),
+    ) ||
+    (ipaddr.isValid(hostname) && !isPublicIpAddress(hostname))
+  ) {
+    throw new ResearchBoundaryError("PublicUrlDestinationRejected");
+  }
+  return url;
+}
+
+export async function readBoundedText(
+  response: Response,
+  maxBytes: number,
+): Promise<string> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new ResearchBoundaryError("InvalidPublicUrlResponseLimit");
+  }
+  const declared = response.headers.get("Content-Length");
+  if (declared && /^\d+$/.test(declared) && Number(declared) > maxBytes) {
+    await response.body?.cancel().catch(() => {});
+    throw new ResearchBoundaryError("PublicUrlResponseTooLarge");
+  }
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let result = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel().catch(() => {});
+        throw new ResearchBoundaryError("PublicUrlResponseTooLarge");
+      }
+      result += decoder.decode(value, { stream: true });
+    }
+    return result + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+class ResearchBoundaryError extends Error {
+  constructor(
+    readonly code: string,
+    options?: ErrorOptions,
+  ) {
+    super(code, options);
+    this.name = "ResearchBoundaryError";
+  }
+}
+
+function isPublicIpAddress(address: string): boolean {
+  try {
+    const parsed = ipaddr.parse(address.replace(/^\[|\]$/g, ""));
+    const normalized =
+      parsed instanceof ipaddr.IPv6 && parsed.isIPv4MappedAddress()
+        ? parsed.toIPv4Address()
+        : parsed;
+    return normalized.range() === "unicast";
+  } catch {
+    return false;
+  }
 }
