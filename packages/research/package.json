@@ -1,13 +1,13 @@
 {
   "name": "@summonghost/research",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Provider-neutral research tool contracts and result formatting",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/ferdousbhai/ghostkit.git",
+    "url": "git+https://github.com/ferdousbhai/ghostkit.git",
     "directory": "packages/research"
   },
   "homepage": "https://github.com/ferdousbhai/ghostkit#readme",

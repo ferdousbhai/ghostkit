@@ -22,10 +22,14 @@ pnpm install
 pnpm validate
 ```
 
-Consumers currently pin exact `pnpm pack` artifacts under their own `vendor/`
-directory. This keeps Cloudflare Builds self-contained and records a tarball
-integrity hash in each lockfile. Public npm releases will replace the vendored
-transport without changing imports or runtime behavior.
+Install only the packages an application needs:
+
+```sh
+pnpm add @summonghost/memory @summonghost/compaction
+```
+
+The packages are published from this repository through npm trusted publishing.
+Each consumer bundles the imported code into its own Cloudflare Worker.
 
 ## Execution boundary
 

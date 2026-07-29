@@ -1,13 +1,13 @@
 {
   "name": "@summonghost/safe-fetch",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Bounded SSRF-resistant public URL fetching for Cloudflare Workers",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/ferdousbhai/ghostkit.git",
+    "url": "git+https://github.com/ferdousbhai/ghostkit.git",
     "directory": "packages/safe-fetch"
   },
   "homepage": "https://github.com/ferdousbhai/ghostkit#readme",
