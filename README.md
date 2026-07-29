@@ -1,6 +1,6 @@
 # Ghostkit
 
-Build-time TypeScript packages shared by SummonGhost, Ask Dan, and GhostBuild.
+Build-time TypeScript packages for Cloudflare Workers and AI applications.
 Applications bundle these packages into their own Cloudflare Worker; there is no
 shared runtime service or network hop.
 
@@ -10,8 +10,8 @@ shared runtime service or network hop.
   mutation/validation helpers.
 - `@summonghost/compaction` — provider-neutral proactive/hard-limit conversation
   compaction policy, stable deduplication keys, and stale-write guards.
-- `@summonghost/research` — separate `web_search`, `read_url`, and `reddit_search`
-  schemas plus provider-neutral result normalization and formatting.
+- `@summonghost/research` — separate `web_search`, `read_url`, `x_search`, and
+  `reddit_search` contracts, native/delegated X adapters, and result formatting.
 - `@summonghost/safe-fetch` — bounded public-URL validation, redirect revalidation,
   and streamed response readers.
 

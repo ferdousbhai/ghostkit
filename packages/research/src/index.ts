@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+export {
+  createDelegatedXSearchTool,
+  createNativeXSearchTool,
+  xSearchInputSchema,
+  xSearchOutputSchema,
+  type DelegatedXSearchOptions,
+  type NativeXSearchOptions,
+  type XSearchInput,
+  type XSearchItem,
+  type XSearchResult,
+} from "./x-search.js";
+
 export const WEB_SEARCH_TYPES = [
   "instant",
   "fast",

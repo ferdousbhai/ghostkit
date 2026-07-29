@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   formatReadUrlResults,
   formatWebSearchResults,
+  createNativeXSearchTool,
   isBlockedWebSearchResult,
   mapExaCategory,
   normalizeSearchQueries,
   readUrlInputSchema,
   redditSearchInputSchema,
   webSearchInputSchema,
+  xSearchInputSchema,
 } from "./index.js";
 
 describe("research contracts", () => {
@@ -58,6 +60,26 @@ describe("research contracts", () => {
         subreddits: ["cloudflare"],
       }),
     ).toMatchObject({ sort: "relevance", time_range: "month" });
+  });
+
+  it("exposes separate delegated and provider-native X search contracts", () => {
+    expect(
+      xSearchInputSchema.parse({
+        query: "Cloudflare Agents",
+        from_date: "2026-07-01",
+      }),
+    ).toMatchObject({ depth: "default" });
+    expect(
+      xSearchInputSchema.safeParse({
+        query: "Cloudflare Agents",
+        from_date: "July 1",
+      }).success,
+    ).toBe(false);
+    expect(createNativeXSearchTool({ fromDate: "2026-07-01" })).toMatchObject({
+      args: { fromDate: "2026-07-01" },
+      id: "xai.x_search",
+      type: "provider",
+    });
   });
 });
 
