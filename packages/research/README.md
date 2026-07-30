@@ -80,8 +80,7 @@ const tools = {
 
 The tool gives Grok the conversation, forces xAI's native X tool, and returns
 cited findings to the primary model. The primary model remains the turn owner,
-continues its tool loop, and can complete other requested actions. Deprecated
-terminal-handoff helpers remain exported for compatibility, but applications
+continues its tool loop, and can complete other requested actions. Applications
 must not infer that a natural-language request is X-only.
 
 Reddit helpers share query construction, listing validation, and post

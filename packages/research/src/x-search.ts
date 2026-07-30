@@ -15,11 +15,6 @@ export const X_SEARCH_MAX_RESULTS = 60;
 export const X_SEARCH_MAX_TEXT_CHARACTERS = 25_000;
 export const GROK_X_RESEARCH_TOOL_NAME = "research_x" as const;
 export const GROK_X_RESEARCH_RESULT_KIND = "grok_x_research" as const;
-/** @deprecated Use GROK_X_RESEARCH_TOOL_NAME. */
-export const GROK_HANDOFF_TOOL_NAME = "handoff_to_grok" as const;
-/** @deprecated Terminal handoff results are retained for compatibility only. */
-export const GROK_X_SEARCH_HANDOFF_RESULT_KIND =
-  "grok_x_search_handoff" as const;
 
 export const xSearchInputSchema = z.strictObject({
   query: z.string().trim().min(1).max(2_000),
@@ -145,10 +140,6 @@ export const grokXResearchInputSchema = z
   });
 
 export type GrokXResearchInput = z.infer<typeof grokXResearchInputSchema>;
-/** @deprecated Use grokXResearchInputSchema. */
-export const grokXSearchHandoffInputSchema = grokXResearchInputSchema;
-/** @deprecated Use GrokXResearchInput. */
-export type GrokXSearchHandoffInput = GrokXResearchInput;
 export type NativeXSearchToolOptions = Parameters<
   XaiProvider["tools"]["xSearch"]
 >[0];
@@ -252,12 +243,6 @@ export type NativeXSearchAnswer = Readonly<{
   totalUsage: LanguageModelUsage;
 }>;
 
-export type GrokXSearchHandoffResult = Readonly<{
-  kind: typeof GROK_X_SEARCH_HANDOFF_RESULT_KIND;
-  text: string;
-  totalUsage: LanguageModelUsage;
-}>;
-
 export type GrokXResearchResult = Readonly<{
   kind: typeof GROK_X_RESEARCH_RESULT_KIND;
   text: string;
@@ -271,9 +256,6 @@ export interface CreateGrokXResearchToolOptions {
   timeoutMs?: number;
   toolDescription?: string;
 }
-
-/** @deprecated Use CreateGrokXResearchToolOptions. */
-export type CreateHandoffToGrokToolOptions = CreateGrokXResearchToolOptions;
 
 /**
  * Run xAI's native X tool and normalize the result into a bounded structure.
@@ -390,40 +372,6 @@ export function createGrokXResearchTool(
   });
 }
 
-/**
- * @deprecated Terminal model handoffs are unsafe for mixed-intent requests.
- * Use `createGrokXResearchTool` and let the primary model continue the turn.
- */
-export function createHandoffToGrokTool(
-  options: CreateHandoffToGrokToolOptions,
-): ToolSet[string] {
-  return tool({
-    description:
-      options.toolDescription ??
-      "Hand the rest of this turn to Grok for native X research and the final answer. Grok receives the conversation plus your explicit instructions; the current model will not synthesize afterward.",
-    inputSchema: grokXSearchHandoffInputSchema,
-    execute: async (input, execution): Promise<GrokXSearchHandoffResult> => {
-      const result = await runGrokXResearchTool({
-        execution,
-        input,
-        options,
-        systemParts: [
-          options.system,
-          "This turn was handed to you because the primary model selected X research.",
-          `Handoff instructions from the primary model:\n${input.instructions}`,
-          "Use the native x_search tool before answering. Answer the user's original request directly and cite direct X URLs.",
-        ],
-      });
-
-      return {
-        kind: GROK_X_SEARCH_HANDOFF_RESULT_KIND,
-        text: result.text,
-        totalUsage: result.totalUsage,
-      };
-    },
-  });
-}
-
 async function runGrokXResearchTool({
   execution,
   input,
@@ -455,71 +403,8 @@ async function runGrokXResearchTool({
   });
 }
 
-/** @deprecated Terminal handoff extraction is retained for compatibility only. */
-export function extractGrokHandoffText(
-  steps: readonly {
-    toolResults?: readonly {
-      output?: unknown;
-      toolName?: string;
-    }[];
-  }[],
-): string | null {
-  for (let stepIndex = steps.length - 1; stepIndex >= 0; stepIndex -= 1) {
-    const results = steps[stepIndex]?.toolResults ?? [];
-    for (
-      let resultIndex = results.length - 1;
-      resultIndex >= 0;
-      resultIndex -= 1
-    ) {
-      const result = results[resultIndex];
-      if (
-        result?.toolName !== GROK_HANDOFF_TOOL_NAME ||
-        !result.output ||
-        typeof result.output !== "object"
-      ) {
-        continue;
-      }
-      const output = result.output as { kind?: unknown; text?: unknown };
-      if (
-        output.kind === GROK_X_SEARCH_HANDOFF_RESULT_KIND &&
-        typeof output.text === "string" &&
-        output.text.trim()
-      ) {
-        return output.text.trim();
-      }
-    }
-  }
-  return null;
-}
-
-const DIRECT_X_ROUTE_PATTERNS = [
-  /\b(?:use|call|run)\s+(?:the\s+)?x_search\b/i,
-  /https?:\/\/(?:www\.)?(?:x\.com|twitter\.com)\//i,
-  /\b(?:search|find|scan|research|check|look\s*up|summarize|review|analyze|show)\b.{0,60}\b(?:x|twitter|tweets?|(?:x|twitter)\s+(?:posts?|threads?)|(?:posts?|threads?)\s+(?:on|from)\s+(?:x|twitter))\b/i,
-  /\b(?:latest|recent|current|top|popular|trending)\b.{0,30}\b(?:tweets?|(?:x|twitter)\s+(?:posts?|threads?)|(?:posts?|threads?)\s+(?:on|from)\s+(?:x|twitter))\b/i,
-  /\b(?:what(?:'s| is| are)?|how)\b.{0,40}\b(?:x|twitter)\b.{0,40}\b(?:say|saying|think|react|discuss|sentiment)\b/i,
-] as const;
-
-/**
- * Precision-biased routing for prompts that explicitly request X research.
- * Ambiguous prompts remain with the primary model, which can still select the
- * `handoff_to_grok` tool while reasoning.
- *
- * @deprecated Prompt classification cannot prove that a request is X-only.
- * Keep the primary model as turn owner and expose `research_x` instead.
- */
-export function shouldRouteDirectlyToGrokXSearch(
-  messages: readonly ModelMessage[],
-): boolean {
-  const latestUserText = extractLatestUserText(messages).trim();
-  return (
-    latestUserText.length > 0 &&
-    DIRECT_X_ROUTE_PATTERNS.some((pattern) => pattern.test(latestUserText))
-  );
-}
-
 function toNativeXSearchOptions(
-  input: GrokXSearchHandoffInput,
+  input: GrokXResearchInput,
 ): NativeXSearchToolOptions {
   return {
     ...(input.allowed_x_handles && {
@@ -549,35 +434,4 @@ function withTimeout(
 ): AbortSignal {
   const timeout = AbortSignal.timeout(timeoutMs);
   return parent ? AbortSignal.any([parent, timeout]) : timeout;
-}
-
-function extractLatestUserText(messages: readonly ModelMessage[]): string {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index] as unknown as {
-      content?: unknown;
-      parts?: unknown;
-      role?: string;
-    };
-    if (message.role !== "user") continue;
-    const text = extractText(message.content) || extractText(message.parts);
-    if (text.trim()) return text;
-  }
-  return "";
-}
-
-function extractText(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) {
-    return value.map(extractText).filter(Boolean).join("\n\n");
-  }
-  if (!value || typeof value !== "object") return "";
-  const part = value as {
-    content?: unknown;
-    text?: unknown;
-    type?: unknown;
-  };
-  if (part.type === "text" && typeof part.text === "string") return part.text;
-  if (typeof part.text === "string") return part.text;
-  if (typeof part.content === "string") return part.content;
-  return "";
 }

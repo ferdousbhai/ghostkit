@@ -1,14 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createGrokXResearchTool,
-  createHandoffToGrokTool,
-  extractGrokHandoffText,
-  GROK_HANDOFF_TOOL_NAME,
   GROK_X_RESEARCH_TOOL_NAME,
   grokXResearchInputSchema,
-  grokXSearchHandoffInputSchema,
   runNativeXSearch,
-  shouldRouteDirectlyToGrokXSearch,
 } from "./index.js";
 
 const { generateTextMock } = vi.hoisted(() => ({
@@ -149,68 +144,5 @@ describe("Grok native X research", () => {
         to_date: "2026-07-01",
       }).success,
     ).toBe(false);
-  });
-
-  it("retains the deprecated terminal handoff contract for compatibility", async () => {
-    generateTextMock.mockResolvedValue({
-      text: "Grok's cited final answer.",
-      totalUsage: { inputTokens: 80, outputTokens: 30, totalTokens: 110 },
-    } as never);
-    const handoffTool = createHandoffToGrokTool({
-      model: { modelId: "grok-4.5" } as never,
-    });
-    await handoffTool.execute?.(
-      { instructions: "Research current discussion." },
-      {
-        messages: [{ role: "user", content: "Research X." }],
-        toolCallId: "handoff-1",
-      } as never,
-    );
-
-    expect(
-      grokXSearchHandoffInputSchema.safeParse({
-        instructions: "Research current discussion.",
-      }).success,
-    ).toBe(true);
-    expect(
-      extractGrokHandoffText([
-        {
-          toolResults: [
-            {
-              output: {
-                kind: "grok_x_search_handoff",
-                text: "  Grok's cited final answer.  ",
-              },
-              toolName: GROK_HANDOFF_TOOL_NAME,
-            },
-          ],
-        },
-      ]),
-    ).toBe("Grok's cited final answer.");
-  });
-
-  it("directly routes only explicit X research prompts", () => {
-    for (const prompt of [
-      "Search X for the latest Cloudflare Agents discussion.",
-      "What are people on Twitter saying about NVDA?",
-      "Summarize recent tweets about the launch.",
-      "Read https://x.com/cloudflare/status/123 and find related X posts.",
-    ]) {
-      expect(
-        shouldRouteDirectlyToGrokXSearch([{ role: "user", content: prompt }]),
-      ).toBe(true);
-    }
-    for (const prompt of [
-      "Explain the X API authentication model.",
-      "Why is the native tool called x_search?",
-      "What is a tweet?",
-      "Solve for x in this equation.",
-      "Search the web for Cloudflare Agents.",
-      "What did Elon say about the launch?",
-    ]) {
-      expect(
-        shouldRouteDirectlyToGrokXSearch([{ role: "user", content: prompt }]),
-      ).toBe(false);
-    }
   });
 });
