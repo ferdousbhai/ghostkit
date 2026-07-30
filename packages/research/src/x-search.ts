@@ -13,7 +13,11 @@ import { z } from "zod";
 
 export const X_SEARCH_MAX_RESULTS = 60;
 export const X_SEARCH_MAX_TEXT_CHARACTERS = 25_000;
+export const GROK_X_RESEARCH_TOOL_NAME = "research_x" as const;
+export const GROK_X_RESEARCH_RESULT_KIND = "grok_x_research" as const;
+/** @deprecated Use GROK_X_RESEARCH_TOOL_NAME. */
 export const GROK_HANDOFF_TOOL_NAME = "handoff_to_grok" as const;
+/** @deprecated Terminal handoff results are retained for compatibility only. */
 export const GROK_X_SEARCH_HANDOFF_RESULT_KIND =
   "grok_x_search_handoff" as const;
 
@@ -89,7 +93,7 @@ const xHandleSchema = z
   .regex(/^@?[A-Za-z0-9_]{1,15}$/)
   .transform((value) => value.replace(/^@/, ""));
 
-export const grokXSearchHandoffInputSchema = z
+export const grokXResearchInputSchema = z
   .strictObject({
     instructions: z
       .string()
@@ -97,7 +101,7 @@ export const grokXSearchHandoffInputSchema = z
       .min(1)
       .max(8_000)
       .describe(
-        "Complete instructions for Grok: what to investigate on X, what evidence matters, and how to answer the user's original request.",
+        "Complete research instructions for Grok: what to investigate on X and what evidence the primary model needs to continue the turn.",
       ),
     from_date: z.iso.date().optional(),
     to_date: z.iso.date().optional(),
@@ -140,9 +144,11 @@ export const grokXSearchHandoffInputSchema = z
     }
   });
 
-export type GrokXSearchHandoffInput = z.infer<
-  typeof grokXSearchHandoffInputSchema
->;
+export type GrokXResearchInput = z.infer<typeof grokXResearchInputSchema>;
+/** @deprecated Use grokXResearchInputSchema. */
+export const grokXSearchHandoffInputSchema = grokXResearchInputSchema;
+/** @deprecated Use GrokXResearchInput. */
+export type GrokXSearchHandoffInput = GrokXResearchInput;
 export type NativeXSearchToolOptions = Parameters<
   XaiProvider["tools"]["xSearch"]
 >[0];
@@ -168,7 +174,7 @@ const DEPTH_LIMITS = {
 
 /**
  * Backward-compatible delegated X-search tool. New orchestration can use
- * `runNativeXSearch` or `createHandoffToGrokTool` directly.
+ * `runNativeXSearch` or `createGrokXResearchTool` directly.
  */
 export function createDelegatedXSearchTool(
   options: DelegatedXSearchOptions,
@@ -252,13 +258,22 @@ export type GrokXSearchHandoffResult = Readonly<{
   totalUsage: LanguageModelUsage;
 }>;
 
-export interface CreateHandoffToGrokToolOptions {
+export type GrokXResearchResult = Readonly<{
+  kind: typeof GROK_X_RESEARCH_RESULT_KIND;
+  text: string;
+  totalUsage: LanguageModelUsage;
+}>;
+
+export interface CreateGrokXResearchToolOptions {
   maxOutputTokens?: number;
   model: LanguageModel;
   system?: string;
   timeoutMs?: number;
   toolDescription?: string;
 }
+
+/** @deprecated Use CreateGrokXResearchToolOptions. */
+export type CreateHandoffToGrokToolOptions = CreateGrokXResearchToolOptions;
 
 /**
  * Run xAI's native X tool and normalize the result into a bounded structure.
@@ -305,8 +320,8 @@ export async function runNativeXSearch(
 }
 
 /**
- * Give Grok the complete turn so native X research and final synthesis happen
- * in one model call. A parent model can deliver the returned text directly.
+ * Give Grok the conversation and research instructions so native X search and
+ * synthesis happen in one nested model call.
  */
 export async function runNativeXSearchAnswer(
   options: RunNativeXSearchAnswerOptions,
@@ -332,7 +347,7 @@ export async function runNativeXSearchAnswer(
   });
   const text = result.text.trim();
   if (!text) {
-    throw new Error("Grok native X-search handoff returned an empty answer");
+    throw new Error("Grok native X research returned an empty answer");
   }
   return {
     text,
@@ -341,9 +356,43 @@ export async function runNativeXSearchAnswer(
 }
 
 /**
- * Create the model-facing `handoff_to_grok` tool. When selected by a parent
- * model, Grok receives the conversation, performs native X research, and
- * returns the final answer without requiring another parent-model synthesis.
+ * Create a model-facing X research tool. Grok receives the conversation,
+ * performs native X research, and returns cited findings to the primary model.
+ * The primary model remains the turn owner and can continue with other tools.
+ */
+export function createGrokXResearchTool(
+  options: CreateGrokXResearchToolOptions,
+): ToolSet[string] {
+  return tool({
+    description:
+      options.toolDescription ??
+      "Research current public X posts with Grok's native X search. Return cited findings to the primary model so it can continue the turn and use other tools.",
+    inputSchema: grokXResearchInputSchema,
+    execute: async (input, execution): Promise<GrokXResearchResult> => {
+      const result = await runGrokXResearchTool({
+        execution,
+        input,
+        options,
+        systemParts: [
+          options.system,
+          "You are the X research specialist inside a larger agent turn. The primary model remains responsible for the final answer and any non-X actions.",
+          `Research instructions from the primary model:\n${input.instructions}`,
+          "Use the native x_search tool before responding. Return comprehensive findings, relevant evidence, and caveats for the primary model. Cite direct X URLs. Do not claim to perform actions outside X research.",
+        ],
+      });
+
+      return {
+        kind: GROK_X_RESEARCH_RESULT_KIND,
+        text: result.text,
+        totalUsage: result.totalUsage,
+      };
+    },
+  });
+}
+
+/**
+ * @deprecated Terminal model handoffs are unsafe for mixed-intent requests.
+ * Use `createGrokXResearchTool` and let the primary model continue the turn.
  */
 export function createHandoffToGrokTool(
   options: CreateHandoffToGrokToolOptions,
@@ -354,25 +403,16 @@ export function createHandoffToGrokTool(
       "Hand the rest of this turn to Grok for native X research and the final answer. Grok receives the conversation plus your explicit instructions; the current model will not synthesize afterward.",
     inputSchema: grokXSearchHandoffInputSchema,
     execute: async (input, execution): Promise<GrokXSearchHandoffResult> => {
-      const result = await runNativeXSearchAnswer({
-        abortSignal: execution.abortSignal,
-        ...(options.maxOutputTokens !== undefined && {
-          maxOutputTokens: options.maxOutputTokens,
-        }),
-        messages: execution.messages,
-        model: options.model,
-        nativeToolOptions: toNativeXSearchOptions(input),
-        system: [
+      const result = await runGrokXResearchTool({
+        execution,
+        input,
+        options,
+        systemParts: [
           options.system,
           "This turn was handed to you because the primary model selected X research.",
           `Handoff instructions from the primary model:\n${input.instructions}`,
           "Use the native x_search tool before answering. Answer the user's original request directly and cite direct X URLs.",
-        ]
-          .filter((part): part is string => Boolean(part))
-          .join("\n\n"),
-        ...(options.timeoutMs !== undefined && {
-          timeoutMs: options.timeoutMs,
-        }),
+        ],
       });
 
       return {
@@ -384,6 +424,38 @@ export function createHandoffToGrokTool(
   });
 }
 
+async function runGrokXResearchTool({
+  execution,
+  input,
+  options,
+  systemParts,
+}: {
+  execution: {
+    abortSignal?: AbortSignal;
+    messages: ModelMessage[];
+  };
+  input: GrokXResearchInput;
+  options: CreateGrokXResearchToolOptions;
+  systemParts: Array<string | undefined>;
+}): Promise<NativeXSearchAnswer> {
+  return runNativeXSearchAnswer({
+    abortSignal: execution.abortSignal,
+    ...(options.maxOutputTokens !== undefined && {
+      maxOutputTokens: options.maxOutputTokens,
+    }),
+    messages: execution.messages,
+    model: options.model,
+    nativeToolOptions: toNativeXSearchOptions(input),
+    system: systemParts
+      .filter((part): part is string => Boolean(part))
+      .join("\n\n"),
+    ...(options.timeoutMs !== undefined && {
+      timeoutMs: options.timeoutMs,
+    }),
+  });
+}
+
+/** @deprecated Terminal handoff extraction is retained for compatibility only. */
 export function extractGrokHandoffText(
   steps: readonly {
     toolResults?: readonly {
@@ -432,6 +504,9 @@ const DIRECT_X_ROUTE_PATTERNS = [
  * Precision-biased routing for prompts that explicitly request X research.
  * Ambiguous prompts remain with the primary model, which can still select the
  * `handoff_to_grok` tool while reasoning.
+ *
+ * @deprecated Prompt classification cannot prove that a request is X-only.
+ * Keep the primary model as turn owner and expose `research_x` instead.
  */
 export function shouldRouteDirectlyToGrokXSearch(
   messages: readonly ModelMessage[],

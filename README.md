@@ -12,7 +12,7 @@ or network hop.
   compaction controller and policy, plus an xAI-native adapter with
   consumer-injected authenticated transport.
 - `@summonghost/research` — separate research tools, shared Exa/Reddit
-  primitives, reusable Grok native-X execution and `handoff_to_grok`, public
+  primitives, reusable Grok native-X execution and non-terminal `research_x`, public
   HTTPS URL admission, bounded response readers, and provider-neutral result
   pagination/cache primitives.
 - `@summonghost/title-generation` — synchronous provisional labels plus

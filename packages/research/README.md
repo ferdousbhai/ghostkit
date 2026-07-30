@@ -59,28 +59,30 @@ const page = paginateText(fullResult, {
 provide synchronous state accessors; Ghostkit validates, expires, repairs, and
 bounds the stored string entries. XML or UI rendering stays with the consumer.
 
-X research includes bounded contracts, structured native-X execution, a
-precision-biased direct-route classifier, and a reusable `handoff_to_grok` tool.
-The consumer injects its configured Grok model, so credentials, billing,
-gateway selection, and persona prompts remain at the deployment boundary.
+X research includes bounded contracts, structured native-X execution, and a
+reusable non-terminal `research_x` tool. The consumer injects its configured
+Grok model, so credentials, billing, gateway selection, and persona prompts
+remain at the deployment boundary.
 
 ```ts
 import {
-  createHandoffToGrokTool,
-  extractGrokHandoffText,
+  createGrokXResearchTool,
+  GROK_X_RESEARCH_TOOL_NAME,
 } from "@summonghost/research";
 
 const tools = {
-  handoff_to_grok: createHandoffToGrokTool({
+  [GROK_X_RESEARCH_TOOL_NAME]: createGrokXResearchTool({
     model: xai.responses("grok-4.5"),
     system: "Application-specific research guidance.",
   }),
 };
 ```
 
-The handoff gives Grok the conversation, forces xAI's native X tool, and
-returns Grok's final cited answer. `extractGrokHandoffText` lets the parent stop
-its tool loop and deliver that answer without another parent-model call.
+The tool gives Grok the conversation, forces xAI's native X tool, and returns
+cited findings to the primary model. The primary model remains the turn owner,
+continues its tool loop, and can complete other requested actions. Deprecated
+terminal-handoff helpers remain exported for compatibility, but applications
+must not infer that a natural-language request is X-only.
 
 Reddit helpers share query construction, listing validation, and post
 normalization without forcing applications into one authentication or ranking

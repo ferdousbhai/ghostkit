@@ -12,7 +12,7 @@ package tarballs.
 | Duplicate URL validation and response bounds                    | `@summonghost/research` primitives                  | SummonGhost, Ask Dan    | done   | included in audit |
 | Combined `search_online` implementations                        | Separate `@summonghost/research` tools              | SummonGhost, Ask Dan    | done   | included in audit |
 | Duplicate Exa request/result adapters                           | Shared Exa executor                                 | SummonGhost, Ask Dan    | done   | included in audit |
-| Ask Dan Grok handoff, routing, and native-X runtime             | Shared `@summonghost/research` Grok capability      | Ask Dan                 | done   | included in audit |
+| Ask Dan Grok research and native-X runtime                      | Shared `@summonghost/research` Grok capability      | Ask Dan                 | done   | included in audit |
 | Duplicate Reddit listing schemas and post normalization         | Shared Reddit parser                                | SummonGhost, Ask Dan    | done   | included in audit |
 | Duplicate `remember` and memory-mutation schemas                | `@summonghost/memory` schemas                       | SummonGhost, Ask Dan    | done   | included in audit |
 | Duplicate Ask Dan compaction instructions                       | `@dan/agent-core`                                   | Ask Dan                 | done   |                -6 |

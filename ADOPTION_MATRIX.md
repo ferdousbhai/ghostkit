@@ -1,11 +1,11 @@
 # Package adoption matrix
 
-| Package                         | Version | SummonGhost          | Ask Dan              | GhostBuild            |
-| ------------------------------- | ------: | -------------------- | -------------------- | --------------------- |
-| `@summonghost/memory`           | `0.1.3` | rollout prepared²    | rollout prepared²    | not applicable        |
-| `@summonghost/compaction`       | `0.1.3` | rollout prepared²    | rollout prepared²    | rollout prepared²     |
-| `@summonghost/research`         | `0.1.4` | adopted and verified | adopted and verified | not applicable        |
-| `@summonghost/title-generation` | `0.1.1` | rollout prepared¹    | not evaluated        | adopted through 0.1.0 |
+| Package                         | Version | SummonGhost           | Ask Dan           | GhostBuild            |
+| ------------------------------- | ------: | --------------------- | ----------------- | --------------------- |
+| `@summonghost/memory`           | `0.1.3` | rollout prepared²     | rollout prepared² | not applicable        |
+| `@summonghost/compaction`       | `0.1.3` | rollout prepared²     | rollout prepared² | rollout prepared²     |
+| `@summonghost/research`         | `0.1.5` | adopted through 0.1.4 | rollout prepared³ | not applicable        |
+| `@summonghost/title-generation` | `0.1.1` | rollout prepared¹     | not evaluated     | adopted through 0.1.0 |
 
 Each release is validated first from its packed artifact with lockfile
 integrity checks, then adopted from the same npm version. SummonGhost uses the
@@ -21,3 +21,6 @@ deployment adoption follows publication of this exact version.
 strict xAI usage/timeout handling, and final memory replay reconciliation.
 Consumers remain pinned to `0.1.2` until publication and exact-version
 adoption.
+
+³ Ask Dan has been validated against the packed `0.1.5` artifact. Adoption
+follows publication of this exact version.

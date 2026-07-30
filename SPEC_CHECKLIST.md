@@ -15,7 +15,7 @@ Status values: `pending`, `in_progress`, `verified`, `not_met`.
 | `x_search`, `web_search`, `read_url`, and `reddit_search` remain distinct            | verified | Research contract, registry, and tool-selection tests            |
 | `web_search` does not accept URLs                                                    | verified | Strict shared schema and consumer tests                          |
 | URL reads share provider-neutral admission and response bounds                       | verified | Research primitives plus application-owned Worker fetch adapters |
-| Reusable Grok handoff and native X execution are bundled from Ghostkit               | verified | Shared runtime tests plus Ask Dan handoff/workflow tests         |
+| Reusable non-terminal Grok research and native X execution are bundled from Ghostkit | verified | Shared runtime tests plus Ask Dan research/workflow tests        |
 | Provider credentials, gateway construction, and persona prompts remain in apps       | verified | Consumers inject configured models into the shared runtime       |
 | xAI native compaction semantics are reusable without application credentials         | verified | Shared adapter tests with consumer-injected transport            |
 | Search-result pagination/cache is provider-neutral and bounded                       | verified | Shared state-agnostic cache, stable-key, and page tests          |
