@@ -271,6 +271,45 @@ describe("@summonghost/memory", () => {
       }),
     );
   });
+
+  it("reconciles a same-operation commit after the final conflict", async () => {
+    let applied = false;
+    const document: RelationshipMemoryDocument = {
+      ownerId: "owner-1",
+      visitorUserId: "visitor-1",
+      content: "- Likes tea.",
+      revision: 1,
+      createdAt: "2026-07-29T00:00:00.000Z",
+      updatedAt: "2026-07-29T00:00:00.000Z",
+    };
+    const repository: RelationshipMemoryRepository = {
+      async read() {
+        return document;
+      },
+      async wasOperationApplied() {
+        return applied;
+      },
+      async commit() {
+        applied = true;
+        return { status: "conflict" };
+      },
+    };
+
+    await expect(
+      executeRelationshipMemoryOperation({
+        repository,
+        operationId: "append-raced",
+        operation: {
+          kind: "mutate",
+          mutation: { kind: "append", content: "- Likes coffee." },
+        },
+        maxAttempts: 1,
+      }),
+    ).resolves.toMatchObject({
+      status: "already_applied",
+      attempts: 1,
+    });
+  });
 });
 
 function memoryRepository(

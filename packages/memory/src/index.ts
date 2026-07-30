@@ -441,6 +441,14 @@ export async function executeRelationshipMemoryOperation(input: {
     }
   }
 
+  if (await input.repository.wasOperationApplied(operationId)) {
+    return {
+      status: "already_applied",
+      document: await input.repository.read(),
+      compacted: false,
+      attempts: maxAttempts,
+    };
+  }
   throw new RelationshipMemoryConflictError(maxAttempts);
 }
 

@@ -27,6 +27,11 @@ Use the shared threshold policy with application-owned provider adapters:
 - compact synchronously at the hard limit if background work is unavailable or
   unfinished.
 
+Configure the blocking threshold below the provider's actual request limit so
+the snapshot call itself still fits. The controller verifies that a blocking
+replacement fits before returning it, but cannot rescue a snapshot request that
+the provider rejects before producing a replacement.
+
 Agent `startFiber()` is appropriate for this single-Agent optimization: it
 stores a retained record before returning and keeps work alive after the
 calling function ends. Recovery of an evicted closure is application-defined.

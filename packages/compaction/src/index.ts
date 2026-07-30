@@ -24,6 +24,21 @@ export class ConversationCompactionSupersededError extends Error {
   }
 }
 
+export class ConversationCompactionLimitError extends Error {
+  readonly code = "conversation_compaction_limit" as const;
+  override name = "ConversationCompactionLimitError";
+
+  constructor(
+    readonly replacementTokens: number,
+    readonly hardLimitTokens: number,
+    readonly headroomTokens: number,
+  ) {
+    super(
+      `Compacted conversation still requires ${saturatingAdd(replacementTokens, headroomTokens)} projected tokens, at or above the ${hardLimitTokens}-token hard limit`,
+    );
+  }
+}
+
 export type ConversationCompactionPolicy = Readonly<{
   proactiveTokens: number;
   hardLimitTokens: number;
@@ -83,7 +98,7 @@ export function decideConversationCompaction(
     input.estimatedTokens,
     "estimatedTokens",
   );
-  const projected = estimated + (input.policy.headroomTokens ?? 0);
+  const projected = saturatingAdd(estimated, input.policy.headroomTokens ?? 0);
   if (projected >= input.policy.hardLimitTokens) return "blocking";
   if (projected >= input.policy.proactiveTokens && !input.pending) {
     return "background";
@@ -198,8 +213,27 @@ export function createConversationCompactionController<
 
     const snapshot = await createSnapshot();
     const replacement = options.applySnapshot({ sequence, snapshot });
+    const replacementMessages = [...replacement];
+    const replacementTokens = nonNegativeInteger(
+      await options.countInputTokens({
+        context,
+        messages: replacementMessages,
+      }),
+      "replacementTokens",
+    );
+    const headroomTokens = options.policy.headroomTokens ?? 0;
+    if (
+      saturatingAdd(replacementTokens, headroomTokens) >=
+      options.policy.hardLimitTokens
+    ) {
+      throw new ConversationCompactionLimitError(
+        replacementTokens,
+        options.policy.hardLimitTokens,
+        headroomTokens,
+      );
+    }
     latestSnapshot = snapshot;
-    effectiveMessages = [...replacement];
+    effectiveMessages = replacementMessages;
     return [...effectiveMessages];
   };
 
@@ -217,9 +251,12 @@ export function createConversationCompactionController<
     );
     return prepared;
   };
+  const latestBlockingSnapshot = (): Snapshot | null => latestSnapshot;
 
   return {
-    latestSnapshot: (): Snapshot | null => latestSnapshot,
+    latestBlockingSnapshot,
+    /** @deprecated Use latestBlockingSnapshot; background snapshots are persisted by the scheduler. */
+    latestSnapshot: latestBlockingSnapshot,
     pending: (): boolean => pendingSequence !== null,
     prepareMessages,
     snapshotSequence: (): number => nextSequence,
@@ -291,6 +328,12 @@ function nonNegativeInteger(value: number, name: string): number {
     throw new Error(`${name} must be a non-negative safe integer`);
   }
   return value;
+}
+
+function saturatingAdd(left: number, right: number): number {
+  return left > Number.MAX_SAFE_INTEGER - right
+    ? Number.MAX_SAFE_INTEGER
+    : left + right;
 }
 
 function requiredKeyPart(value: string, name: string): string {

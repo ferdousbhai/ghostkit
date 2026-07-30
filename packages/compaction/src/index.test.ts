@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canApplyConversationCompaction,
+  ConversationCompactionLimitError,
   ConversationCompactionSupersededError,
   conversationCompactionKey,
   createConversationCompactionController,
@@ -112,7 +113,8 @@ describe("conversation compaction controller", () => {
 
     const blocking = createConversationCompactionController<string, string>({
       applySnapshot: ({ snapshot }) => [`summary:${snapshot}`],
-      countInputTokens: async () => 100_000,
+      countInputTokens: async ({ messages }) =>
+        messages[0]?.startsWith("summary:") ? 1_000 : 100_000,
       createSnapshot: async ({ messages, sequence }) =>
         `${sequence}:${messages.join("|")}`,
       policy,
@@ -163,7 +165,29 @@ describe("conversation compaction controller", () => {
     await controller.prepareMessages([...first, { id: "b", text: "two" }]);
     await controller.prepareMessages([{ id: "a", text: "changed" }]);
 
-    expect(measured).toEqual([["a"], ["summary", "b"], ["a"]]);
+    expect(measured).toEqual([["a"], ["summary"], ["summary", "b"], ["a"]]);
+    expect(controller.latestSnapshot()).toBeNull();
+  });
+
+  it("rejects a blocking replacement that still reaches the hard limit", async () => {
+    const controller = createConversationCompactionController<string, string>({
+      applySnapshot: () => ["summary"],
+      countInputTokens: async () => 100_000,
+      createSnapshot: async () => "oversized",
+      policy,
+    });
+
+    const error = await controller
+      .prepareMessages(["a"])
+      .then(() => null)
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ConversationCompactionLimitError);
+    expect(error).toMatchObject({
+      code: "conversation_compaction_limit",
+      hardLimitTokens: 100_000,
+      headroomTokens: 5_000,
+      replacementTokens: 100_000,
+    });
     expect(controller.latestSnapshot()).toBeNull();
   });
 

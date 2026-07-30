@@ -115,19 +115,23 @@ export function createXaiCompactionAdapter(options: {
 
     const payload = asRecord(await response.json());
     const items = asInputItems(payload?.output);
-    if (!items || !readCompactionItem(items[0])) {
+    if (items?.length !== 1 || !readCompactionItem(items[0])) {
       throw new Error(
         "xAI context compaction returned no valid compaction item",
       );
     }
-    const usage = parseXaiNativeUsage(payload?.usage) ?? emptyXaiUsage();
+    const usage = parseXaiNativeUsage(payload?.usage);
+    const droppedMessageCount = readNonNegativeSafeInteger(
+      asRecord(payload?.usage)?.dropped_message_count,
+    );
+    if (!usage || droppedMessageCount === null) {
+      throw new Error("xAI context compaction returned invalid usage");
+    }
     return {
       items,
       usage: {
         ...usage,
-        droppedMessageCount: asNonNegativeInteger(
-          asRecord(payload?.usage)?.dropped_message_count,
-        ),
+        droppedMessageCount,
       },
     };
   };
@@ -139,22 +143,35 @@ export function createXaiCompactionAdapter(options: {
       input.hardLimitTokens,
       "hardLimitTokens",
     );
-    const knownTokens = asNonNegativeInteger(input.knownTokens);
-    const headroomTokens = asNonNegativeInteger(input.headroomTokens);
-    if (knownTokens + headroomTokens >= hardLimitTokens) return true;
+    const knownTokens = optionalNonNegativeSafeInteger(
+      input.knownTokens,
+      "knownTokens",
+    );
+    const headroomTokens = optionalNonNegativeSafeInteger(
+      input.headroomTokens,
+      "headroomTokens",
+    );
+    if (saturatingAdd(knownTokens, headroomTokens) >= hardLimitTokens) {
+      return true;
+    }
 
     // One byte cannot require more than one byte-fallback token. Avoid a
     // provider request when even that conservative bound fits.
     if (
-      knownTokens + serializedByteLength(input.items) + headroomTokens <
-      hardLimitTokens
+      saturatingAdd(
+        saturatingAdd(knownTokens, serializedByteLength(input.items)),
+        headroomTokens,
+      ) < hardLimitTokens
     ) {
       return false;
     }
 
     try {
       const itemTokens = await countInputTokens(input);
-      return knownTokens + itemTokens + headroomTokens >= hardLimitTokens;
+      return (
+        saturatingAdd(saturatingAdd(knownTokens, itemTokens), headroomTokens) >=
+        hardLimitTokens
+      );
     } catch {
       // Failing closed avoids sending a context that may exceed the provider's
       // hard limit when precise preflight counting is unavailable.
@@ -196,9 +213,17 @@ export function buildXaiCompactionInput(
 export function parseXaiNativeUsage(value: unknown): XaiNativeUsage | null {
   const usage = asRecord(value);
   if (!usage) return null;
-  const inputTokens = asNonNegativeInteger(usage.input_tokens);
-  const outputTokens = asNonNegativeInteger(usage.output_tokens);
-  const reportedTotalTokens = asNonNegativeInteger(usage.total_tokens);
+  const inputTokens = readNonNegativeSafeInteger(usage.input_tokens);
+  const outputTokens = readNonNegativeSafeInteger(usage.output_tokens);
+  const totalTokens = readNonNegativeSafeInteger(usage.total_tokens);
+  if (
+    inputTokens === null ||
+    outputTokens === null ||
+    totalTokens === null ||
+    totalTokens !== saturatingAdd(inputTokens, outputTokens)
+  ) {
+    return null;
+  }
   return {
     cacheReadInputTokens: asNonNegativeInteger(
       asRecord(usage.input_tokens_details)?.cached_tokens,
@@ -207,7 +232,7 @@ export function parseXaiNativeUsage(value: unknown): XaiNativeUsage | null {
     inputTokens,
     outputTokens,
     serverSideToolCalls: asNonNegativeInteger(usage.num_server_side_tools_used),
-    totalTokens: reportedTotalTokens || inputTokens + outputTokens,
+    totalTokens,
   };
 }
 
@@ -279,17 +304,6 @@ function readCompactionItem(value: unknown): XaiResponsesInputItem | null {
     : null;
 }
 
-function emptyXaiUsage(): XaiNativeUsage {
-  return {
-    cacheReadInputTokens: 0,
-    costUsdTicks: null,
-    inputTokens: 0,
-    outputTokens: 0,
-    serverSideToolCalls: 0,
-    totalTokens: 0,
-  };
-}
-
 async function requestWithTimeout(
   request: XaiCompactionTransport,
   input: Omit<XaiCompactionTransportRequest, "signal">,
@@ -297,14 +311,21 @@ async function requestWithTimeout(
   timeoutMessage: string,
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(new Error(timeoutMessage)),
-    timeoutMs,
-  );
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(timeoutMessage);
+      controller.abort(error);
+      reject(error);
+    }, timeoutMs);
+  });
   try {
-    return await request({ ...input, signal: controller.signal });
+    return await Promise.race([
+      request({ ...input, signal: controller.signal }),
+      timeout,
+    ]);
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
 }
 
@@ -324,6 +345,29 @@ function positiveSafeInteger(value: number, name: string): number {
     throw new Error(`${name} must be a positive safe integer`);
   }
   return value;
+}
+
+function optionalNonNegativeSafeInteger(
+  value: number | undefined,
+  name: string,
+): number {
+  if (value === undefined) return 0;
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative safe integer`);
+  }
+  return value;
+}
+
+function readNonNegativeSafeInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : null;
+}
+
+function saturatingAdd(left: number, right: number): number {
+  return left > Number.MAX_SAFE_INTEGER - right
+    ? Number.MAX_SAFE_INTEGER
+    : left + right;
 }
 
 function requiredString(value: string, name: string): string {

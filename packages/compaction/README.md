@@ -34,11 +34,20 @@ const controller = createConversationCompactionController({
 });
 ```
 
+`hardLimitTokens` is the threshold at which preparation must block; configure
+it low enough that the provider call creating the snapshot can still accept its
+source. After applying a blocking snapshot, the controller counts the
+replacement and throws `ConversationCompactionLimitError` instead of returning
+context that still reaches the hard limit.
+
 The controller verifies that subsequent raw history extends the previously
 observed prefix before appending only its suffix. Replaced, truncated, or
 same-length-mutated history resets the effective view instead of reusing a stale
 summary. If no scheduler is supplied, proactive compaction is skipped and the
 controller waits for the blocking threshold.
+
+Object messages should supply `messagesEqual`; the default `Object.is`
+comparison treats re-created objects as a changed branch.
 
 Once proactive work is accepted, the controller keeps that source marked
 pending for the lifetime of the observed history branch. This prevents repeated
@@ -46,6 +55,8 @@ background scheduling before the consumer applies its durable checkpoint.
 Background runs are invalidated when their observed history branch is replaced,
 and a failed run releases the pending marker so a later preparation may
 reschedule it. Preparation calls are serialized inside each controller.
+`latestBlockingSnapshot()` reports only the snapshot applied synchronously;
+background snapshots belong to the scheduler's durable lifecycle.
 
 ## xAI native compaction
 
@@ -83,6 +94,11 @@ The transport contract never receives or discovers an application API key. It
 receives only the provider path, JSON body, optional conversation identifier,
 and an abort signal. Native checkpoint persistence and conversion from
 application messages remain consumer concerns.
+
+Preflight tokenization measures serialized Responses input. Provider-side
+expansion of files or other structured items is not observable through
+`/tokenize-text`; consumers should carry forward known provider usage and
+reserve model-appropriate headroom for those inputs.
 
 See [Ghostkit](https://github.com/ferdousbhai/ghostkit) for source and design
 notes.

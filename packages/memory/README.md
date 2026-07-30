@@ -36,7 +36,8 @@ Storage and background execution remain application-owned, so consumers can use
 Cloudflare D1, Durable Objects, Workflows, Fibers, or another persistence layer
 without adding a shared network hop. The application repository must commit the
 new document and operation ID atomically; the shared executor supplies replay
-detection, optimistic retries, compaction policy, and compaction validation.
+detection, optimistic retries, compaction policy, compaction validation, and a
+final durable replay check after the conflict budget is exhausted.
 
 See [Ghostkit](https://github.com/ferdousbhai/ghostkit) for source and design
 notes.

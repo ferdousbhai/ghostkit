@@ -152,17 +152,32 @@ describe("xAI compaction adapter", () => {
         model: "grok-4.5",
       }),
     ).rejects.toThrow("xAI context compaction failed (429): provider detail");
+
+    const invalidUsage = createXaiCompactionAdapter({
+      request: async () =>
+        Response.json({
+          output: [
+            {
+              type: "compaction",
+              id: "cmp-1",
+              encrypted_content: "opaque-context",
+            },
+          ],
+          usage: { input_tokens: "unknown", output_tokens: 10 },
+        }),
+    });
+    await expect(
+      invalidUsage.compactInput({
+        items: [{ role: "user", content: "hello" }],
+        model: "grok-4.5",
+      }),
+    ).rejects.toThrow("returned invalid usage");
   });
 
-  it("aborts a transport that honors the shared timeout signal", async () => {
+  it("times out even when the injected transport ignores its abort signal", async () => {
     const adapter = createXaiCompactionAdapter({
       timeoutMs: 1,
-      request: ({ signal }) =>
-        new Promise<Response>((_resolve, reject) => {
-          signal.addEventListener("abort", () => reject(signal.reason), {
-            once: true,
-          });
-        }),
+      request: () => new Promise<Response>(() => undefined),
     });
 
     await expect(
@@ -171,6 +186,21 @@ describe("xAI compaction adapter", () => {
         model: "grok-4.5",
       }),
     ).rejects.toThrow("xAI context token counting timed out");
+  });
+
+  it("rejects unsafe token estimates instead of coercing them to zero", async () => {
+    const adapter = createXaiCompactionAdapter({
+      request: async () => Response.json({ token_ids: [] }),
+    });
+
+    await expect(
+      adapter.shouldCompactInput({
+        hardLimitTokens: 1_000,
+        items: [],
+        knownTokens: Number.POSITIVE_INFINITY,
+        model: "grok-4.5",
+      }),
+    ).rejects.toThrow("knownTokens must be a non-negative safe integer");
   });
 });
 

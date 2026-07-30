@@ -2,8 +2,8 @@
 
 | Package                         | Version | SummonGhost          | Ask Dan              | GhostBuild            |
 | ------------------------------- | ------: | -------------------- | -------------------- | --------------------- |
-| `@summonghost/memory`           | `0.1.2` | adopted and verified | adopted and verified | not applicable        |
-| `@summonghost/compaction`       | `0.1.2` | adopted and verified | controller adopted   | policy adopted        |
+| `@summonghost/memory`           | `0.1.3` | rollout prepared²    | rollout prepared²    | not applicable        |
+| `@summonghost/compaction`       | `0.1.3` | rollout prepared²    | rollout prepared²    | rollout prepared²     |
 | `@summonghost/research`         | `0.1.4` | adopted and verified | adopted and verified | not applicable        |
 | `@summonghost/title-generation` | `0.1.1` | rollout prepared¹    | not evaluated        | adopted through 0.1.0 |
 
@@ -16,3 +16,8 @@ there. GhostBuild intentionally has no memory or research dependency.
 
 ¹ SummonGhost has been validated against the packed `0.1.1` artifact. Its
 deployment adoption follows publication of this exact version.
+
+² The `0.1.3` packed artifacts include blocking-replacement verification,
+strict xAI usage/timeout handling, and final memory replay reconciliation.
+Consumers remain pinned to `0.1.2` until publication and exact-version
+adoption.
