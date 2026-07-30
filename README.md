@@ -15,6 +15,8 @@ or network hop.
   primitives, reusable Grok native-X execution and `handoff_to_grok`, public
   HTTPS URL admission, bounded response readers, and provider-neutral result
   pagination/cache primitives.
+- `@summonghost/title-generation` — synchronous provisional labels plus
+  provider-neutral small-model prompt construction and output validation.
 
 ## Commands
 
@@ -26,7 +28,7 @@ pnpm validate
 Install only the packages an application needs:
 
 ```sh
-pnpm add @summonghost/memory @summonghost/compaction
+pnpm add @summonghost/memory @summonghost/compaction @summonghost/title-generation
 ```
 
 The packages are published from this repository through npm trusted publishing.
