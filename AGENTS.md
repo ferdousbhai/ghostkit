@@ -4,6 +4,10 @@ This repository contains build-time TypeScript packages shared by consuming
 applications. Packages are bundled into each consumer; Ghostkit does not run a
 shared network service.
 
+## Delivery
+
+Work on `main`; no branches, worktrees, or PRs unless asked. Before each commit, simplify the diff and affected logic, fix all valid issues, run checks, commit, and push `origin/main`.
+
 ## Boundaries
 
 - Keep application authentication, billing, persona prompts, provider
