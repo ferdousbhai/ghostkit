@@ -26,3 +26,7 @@ const generated = await generateTitle({
 The package does not call a model or own credentials, billing, persistence,
 background execution, or title provenance. Consumers inject and account for
 their own model calls.
+
+Provisional labels remove common request, creation, and retrieval framing, so
+short commands such as `get weather` become `weather`. Model requests are
+deterministic and share the package's prompt bounds and output validation.

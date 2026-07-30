@@ -13,6 +13,16 @@ describe("@summonghost/title-generation", () => {
         "Build a polished, responsive single-page app called Pocket Poll, with live voting.",
       ),
     ).toBe("Pocket Poll");
+    expect(
+      deriveProvisionalTitle(
+        "Build me an app called Night Watch that monitors uptime",
+      ),
+    ).toBe("Night Watch");
+    expect(
+      deriveProvisionalTitle(
+        'Create an app named "Meals for Two" with weekly recipes',
+      ),
+    ).toBe("Meals for Two");
   });
 
   it("removes common request framing and bounds provisional labels", () => {
@@ -24,6 +34,19 @@ describe("@summonghost/title-generation", () => {
         "Create a highly polished responsive dashboard for monitoring every deployment across the company",
       ),
     ).toBe("highly polished responsive dashboard for monitoring every");
+  });
+
+  it("removes leading retrieval commands from provisional labels", () => {
+    expect(deriveProvisionalTitle("get weather")).toBe("weather");
+    expect(deriveProvisionalTitle("Can you please get the weather?")).toBe(
+      "weather",
+    );
+    expect(deriveProvisionalTitle("show me the latest deployment status")).toBe(
+      "latest deployment status",
+    );
+    expect(deriveProvisionalTitle("look up Helsinki train times")).toBe(
+      "Helsinki train times",
+    );
   });
 
   it("builds a bounded prompt that treats the first prompt as JSON data", async () => {
@@ -71,7 +94,7 @@ describe("@summonghost/title-generation", () => {
     });
     expect(generated?.result.request).toMatchObject({
       maxOutputTokens: 24,
-      temperature: 0.2,
+      temperature: 0,
     });
   });
 
