@@ -2,15 +2,19 @@ export const MAX_GENERATED_TITLE_CHARACTERS = 60;
 
 const MAX_TITLE_PROMPT_CHARACTERS = 4_000;
 const TITLE_GENERATION_MAX_OUTPUT_TOKENS = 24;
-const TITLE_GENERATION_TEMPERATURE = 0.2;
+const TITLE_GENERATION_TEMPERATURE = 0;
 const MAX_PROVISIONAL_TITLE_WORDS = 8;
 const LEADING_MARKDOWN_PATTERN = /^(?:#{1,6}|[-*>])\s*/;
 const LEADING_REQUEST_PATTERN =
   /^(?:(?:can|could|would) you (?:please )?(?:help me )?|please (?:help me )?|help me |i (?:want|need)(?: you)? to )(?:to |with )?/i;
 const LEADING_CREATION_PATTERN =
   /^(?:build|create|develop|design|implement|make)(?:\s+me)?\s+(?:an?\s+|the\s+)?/i;
-const NAMED_SUBJECT_PATTERN =
-  /\b(?:called|named|titled)\s+["'`]?([^"'`,.;:!?()\n]{1,100})/i;
+const LEADING_RETRIEVAL_PATTERN =
+  /^(?:(?:look|search)\s+(?:up|for)|check|fetch|find|get|show|tell)(?:\s+me)?\s+(?:the\s+)?/i;
+const QUOTED_NAMED_SUBJECT_PATTERN =
+  /\b(?:called|named|titled)\s+(["'`])([^"'`\n]{1,100})\1/i;
+const UNQUOTED_NAMED_SUBJECT_PATTERN =
+  /\b(?:called|named|titled)\s+([^,.;:!?()\n]{1,100}?)(?=\s+(?:that|which|with|to)\b|[,.;:!?()\n]|$)/i;
 const WEAK_TITLES = new Set([
   "",
   "untitled",
@@ -56,6 +60,13 @@ function isWeakTitle(value: string | null | undefined): boolean {
   return WEAK_TITLES.has(normalizeWhitespace(value).toLocaleLowerCase());
 }
 
+function extractNamedSubject(value: string): string | undefined {
+  return (
+    value.match(QUOTED_NAMED_SUBJECT_PATTERN)?.[2] ??
+    value.match(UNQUOTED_NAMED_SUBJECT_PATTERN)?.[1]
+  );
+}
+
 /** Build an immediate, deterministic label before any model request. */
 export function deriveProvisionalTitle(
   rawFirstPrompt: string | null | undefined,
@@ -66,12 +77,13 @@ export function deriveProvisionalTitle(
     .find((line) => line && line !== "```");
   if (!firstContentLine) return null;
 
-  const namedSubject = firstContentLine.match(NAMED_SUBJECT_PATTERN)?.[1];
+  const namedSubject = extractNamedSubject(firstContentLine);
   const candidate = namedSubject
     ? namedSubject
     : firstContentLine
         .replace(LEADING_REQUEST_PATTERN, "")
         .replace(LEADING_CREATION_PATTERN, "")
+        .replace(LEADING_RETRIEVAL_PATTERN, "")
         .trim();
 
   return normalizeTitle(limitWords(candidate, MAX_PROVISIONAL_TITLE_WORDS));
