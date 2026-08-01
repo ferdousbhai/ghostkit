@@ -1,0 +1,62 @@
+{
+  "name": "@summonghost/markdown-editor-react",
+  "version": "0.1.0",
+  "description": "Small lazy-loaded Milkdown Markdown editor for React",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "./styles.css"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ferdousbhai/ghostkit.git",
+    "directory": "packages/markdown-editor-react"
+  },
+  "homepage": "https://github.com/ferdousbhai/ghostkit#readme",
+  "bugs": {
+    "url": "https://github.com/ferdousbhai/ghostkit/issues"
+  },
+  "files": [
+    "dist",
+    "src",
+    "styles.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./styles.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pack:check": "pnpm pack --pack-destination ../../dist"
+  },
+  "dependencies": {
+    "@milkdown/core": "^7.19.1",
+    "@milkdown/plugin-history": "^7.19.1",
+    "@milkdown/plugin-listener": "^7.19.1",
+    "@milkdown/plugin-automd": "^7.19.1",
+    "@milkdown/preset-commonmark": "^7.19.1",
+    "@milkdown/preset-gfm": "^7.19.1",
+    "@milkdown/react": "^7.19.1"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

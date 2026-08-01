@@ -1,0 +1,91 @@
+.ghostkit-markdown-editor {
+  min-height: var(--ghostkit-editor-min-height, 18rem);
+  padding: var(--ghostkit-editor-padding, 1.25rem);
+  border: 1px solid var(--ghostkit-editor-border, #d8ddd9);
+  border-radius: var(--ghostkit-editor-radius, 0.75rem);
+  color: var(--ghostkit-editor-color, #252925);
+  background: var(--ghostkit-editor-background, #fff);
+  font: var(--ghostkit-editor-font, 400 1rem/1.7 system-ui, sans-serif);
+}
+.ghostkit-markdown-editor:focus-within {
+  border-color: var(--ghostkit-editor-focus, #6299b8);
+}
+.ghostkit-markdown-editor .milkdown,
+.ghostkit-markdown-editor .editor,
+.ghostkit-markdown-editor .ProseMirror {
+  min-height: inherit;
+  outline: none;
+}
+.ghostkit-markdown-editor .ProseMirror {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ghostkit-markdown-editor .ProseMirror:empty::before {
+  content: attr(data-placeholder);
+  color: var(--ghostkit-editor-muted, #7a817c);
+  pointer-events: none;
+}
+.ghostkit-markdown-editor h1 {
+  margin: 0 0 1rem;
+  font-size: 2rem;
+  line-height: 1.15;
+}
+.ghostkit-markdown-editor h2 {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+.ghostkit-markdown-editor h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.2rem;
+}
+.ghostkit-markdown-editor p,
+.ghostkit-markdown-editor ul,
+.ghostkit-markdown-editor ol,
+.ghostkit-markdown-editor blockquote,
+.ghostkit-markdown-editor pre,
+.ghostkit-markdown-editor table {
+  margin: 0 0 0.85rem;
+}
+.ghostkit-markdown-editor ul,
+.ghostkit-markdown-editor ol {
+  padding-left: 1.5rem;
+}
+.ghostkit-markdown-editor blockquote {
+  padding-left: 1rem;
+  border-left: 3px solid var(--ghostkit-editor-accent, #6299b8);
+  color: var(--ghostkit-editor-muted, #667069);
+}
+.ghostkit-markdown-editor code {
+  padding: 0.1em 0.3em;
+  border-radius: 0.25rem;
+  background: var(--ghostkit-editor-code-background, #f1f3f1);
+  font-family: ui-monospace, monospace;
+}
+.ghostkit-markdown-editor pre {
+  overflow-x: auto;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: var(--ghostkit-editor-code-background, #f1f3f1);
+}
+.ghostkit-markdown-editor pre code {
+  padding: 0;
+  background: transparent;
+}
+.ghostkit-markdown-editor a {
+  color: var(--ghostkit-editor-link, #1678ad);
+}
+.ghostkit-markdown-editor table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ghostkit-markdown-editor th,
+.ghostkit-markdown-editor td {
+  padding: 0.5rem;
+  border: 1px solid var(--ghostkit-editor-border, #d8ddd9);
+  text-align: left;
+}
+.ghostkit-markdown-editor img {
+  max-width: 100%;
+  height: auto;
+}

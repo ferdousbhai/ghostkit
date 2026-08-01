@@ -1,11 +1,13 @@
 # Package adoption matrix
 
-| Package                         | Version | SummonGhost          | Ask Dan              | GhostBuild            |
-| ------------------------------- | ------: | -------------------- | -------------------- | --------------------- |
-| `@summonghost/memory`           | `0.1.3` | rollout prepared²    | rollout prepared²    | not applicable        |
-| `@summonghost/compaction`       | `0.1.3` | rollout prepared²    | rollout prepared²    | rollout prepared²     |
-| `@summonghost/research`         | `0.2.0` | adopted and verified | adopted and verified | not applicable        |
-| `@summonghost/title-generation` | `0.1.1` | rollout prepared¹    | not evaluated        | adopted through 0.1.0 |
+| Package                              | Version | SummonGhost               | Ask Dan                   | GhostBuild            |
+| ------------------------------------ | ------: | ------------------------- | ------------------------- | --------------------- |
+| `@summonghost/memory`                | `0.1.3` | rollout prepared²         | rollout prepared²         | not applicable        |
+| `@summonghost/compaction`            | `0.1.3` | rollout prepared²         | rollout prepared²         | rollout prepared²     |
+| `@summonghost/research`              | `0.2.0` | adopted and verified      | adopted and verified      | not applicable        |
+| `@summonghost/title-generation`      | `0.1.1` | rollout prepared¹         | not evaluated             | adopted through 0.1.0 |
+| `@summonghost/context-documents`     | `0.1.0` | packed artifact verified³ | packed artifact verified³ | not applicable        |
+| `@summonghost/markdown-editor-react` | `0.1.0` | packed artifact verified³ | packed artifact verified³ | not applicable        |
 
 Each release is validated first from its packed artifact with lockfile
 integrity checks, then adopted from the same npm version. SummonGhost uses the
@@ -21,3 +23,7 @@ deployment adoption follows publication of this exact version.
 strict xAI usage/timeout handling, and final memory replay reconciliation.
 Consumers remain pinned to `0.1.2` until publication and exact-version
 adoption.
+
+³ Both document packages build and pass their consumer suites from packed
+artifacts in SummonGhost and Ask Dan. Storage, authorization, and save
+orchestration remain consumer-owned.

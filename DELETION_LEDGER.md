@@ -21,6 +21,8 @@ package tarballs.
 | xAI native compact/tokenize request and response helpers        | Shared xAI adapter with injected app transport      | SummonGhost             | done   | included in audit |
 | Tool-result stable keys, bounded cache, and text pagination     | `@summonghost/research` primitives                  | SummonGhost             | done   | included in audit |
 | Duplicate provisional/model title prompt and validation helpers | `@summonghost/title-generation`                     | SummonGhost, GhostBuild | done   | included in audit |
+| SummonGhost Milkdown wrappers and shared editor styling         | `@summonghost/markdown-editor-react`                | SummonGhost, Ask Dan    | done   | included in audit |
+| Markdown title/format and revision reconciliation helpers       | `@summonghost/context-documents`                    | SummonGhost, Ask Dan    | done   | included in audit |
 
 ¹ The first SummonGhost adoption deletes 243 and adds 284 production lines
 (net +41) when the new 126-line Workflow adapter is included. The shared

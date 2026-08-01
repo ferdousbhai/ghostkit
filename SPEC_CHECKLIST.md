@@ -22,6 +22,8 @@ Status values: `pending`, `in_progress`, `verified`, `not_met`.
 | App-specific compaction persistence and provider routing remain in applications      | verified | Shared xAI transport contract plus consumer-owned checkpoints    |
 | GhostBuild does not gain memory or research dependencies                             | verified | Package/dependency audit                                         |
 | Consumer production code is net-negative after the migration                         | not_met  | Durable migration adds more code than the deleted adapters       |
+| Shared context-document behavior is storage- and provider-neutral                    | verified | Pure Markdown/revision package has no runtime dependencies       |
+| Shared Markdown editor has no product or persistence policy                          | verified | React package exposes editor props and scoped CSS only           |
 
 The final row is intentionally not marked complete. The extraction deletes
 duplicate helpers and legacy search code, but canonical-memory migration,

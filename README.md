@@ -17,6 +17,10 @@ or network hop.
   pagination/cache primitives.
 - `@summonghost/title-generation` — synchronous provisional labels plus
   provider-neutral small-model prompt construction and output validation.
+- `@summonghost/context-documents` — pure Markdown normalization, metadata,
+  prompt-formatting, and revision-reconciliation helpers.
+- `@summonghost/markdown-editor-react` — a small lazy-loaded Milkdown React
+  editor with scoped, variable-driven styles.
 
 ## Commands
 
