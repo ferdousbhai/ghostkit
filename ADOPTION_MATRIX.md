@@ -8,6 +8,7 @@
 | `@summonghost/title-generation`      | `0.1.1` | rollout prepared¹     | not evaluated         | adopted through 0.1.0 |
 | `@summonghost/context-documents`     | `0.1.0` | adopted and verified³ | adopted and verified³ | not applicable        |
 | `@summonghost/markdown-editor-react` | `0.1.0` | adopted and verified³ | adopted and verified³ | not applicable        |
+| `@summonghost/feedback-context`      | `0.1.0` | rollout prepared⁴     | rollout prepared⁴     | not evaluated         |
 
 Each release is validated first from its packed artifact with lockfile
 integrity checks, then adopted from the same npm version. SummonGhost uses the
@@ -27,3 +28,7 @@ adoption.
 ³ Both document packages are published at `0.1.0`, pinned to that exact version
 in SummonGhost and Ask Dan, and pass their consumer suites. Storage,
 authorization, and save orchestration remain consumer-owned.
+
+⁴ The package renders compact reaction XML and decorates only temporary model
+views. Reaction ingestion, authorization, external-message mapping,
+persistence, and retention remain consumer-owned.

@@ -23,6 +23,7 @@ package tarballs.
 | Duplicate provisional/model title prompt and validation helpers | `@summonghost/title-generation`                     | SummonGhost, GhostBuild | done   | included in audit |
 | SummonGhost Milkdown wrappers and shared editor styling         | `@summonghost/markdown-editor-react`                | SummonGhost, Ask Dan    | done   | included in audit |
 | Markdown title/format and revision reconciliation helpers       | `@summonghost/context-documents`                    | SummonGhost, Ask Dan    | done   | included in audit |
+| Duplicate reaction XML and model-view decoration policy         | `@summonghost/feedback-context`                     | SummonGhost, Ask Dan    | ready  |  pending adoption |
 
 ¹ The first SummonGhost adoption deletes 243 and adds 284 production lines
 (net +41) when the new 126-line Workflow adapter is included. The shared
