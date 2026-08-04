@@ -3,15 +3,15 @@ import type { RedditSearchInput } from "./index.js";
 
 export const redditPostSchema = z
   .object({
-    author: z.string().optional(),
-    created_utc: z.number(),
-    id: z.string(),
-    num_comments: z.number().optional(),
-    permalink: z.string(),
-    score: z.number().optional(),
-    selftext: z.string().optional(),
-    subreddit: z.string(),
-    title: z.string(),
+    author: z.string().nullable(),
+    created_utc: z.number().nonnegative().max(8_640_000_000),
+    id: z.string().min(1),
+    num_comments: z.number().int().nonnegative(),
+    permalink: z.string().min(1),
+    score: z.number().int(),
+    selftext: z.string(),
+    subreddit: z.string().min(1),
+    title: z.string().min(1),
   })
   .passthrough();
 
@@ -72,11 +72,11 @@ export function buildRedditSearchUrl(
 
 export function normalizeRedditPost(post: RedditPost): RedditSearchResult {
   return {
-    author: post.author ?? null,
-    comments: post.num_comments ?? 0,
+    author: post.author,
+    comments: post.num_comments,
     date: new Date(post.created_utc * 1_000).toISOString(),
-    excerpt: post.selftext?.replace(/\s+/g, " ").trim().slice(0, 1_500) ?? "",
-    score: post.score ?? 0,
+    excerpt: post.selftext.replace(/\s+/g, " ").trim().slice(0, 1_500),
+    score: post.score,
     subreddit: post.subreddit,
     title: post.title,
     url: new URL(post.permalink, "https://www.reddit.com").toString(),
@@ -87,8 +87,11 @@ export function parseRedditSearchResults(
   untrusted: unknown,
   limit: number,
 ): RedditSearchResult[] {
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    throw new Error("Reddit result limit must be a non-negative safe integer");
+  }
   const listing = redditListingSchema.parse(untrusted);
   return listing.data.children
-    .slice(0, Math.max(0, limit))
+    .slice(0, limit)
     .map(({ data }) => normalizeRedditPost(data));
 }

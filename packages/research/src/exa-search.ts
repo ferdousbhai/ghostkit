@@ -4,6 +4,20 @@ import {
   type ResearchResult,
   type WebSearchInput,
 } from "./index.js";
+import { z } from "zod";
+
+const exaResearchResultSchema = z
+  .object({
+    author: z.string().optional(),
+    highlights: z.array(z.string()).optional(),
+    id: z.string().optional(),
+    publishedDate: z.string().optional(),
+    summary: z.string().optional(),
+    text: z.string().optional(),
+    title: z.string().optional(),
+    url: z.url(),
+  })
+  .passthrough();
 
 export type ExaSearchRequest = Readonly<{
   additional_queries?: readonly string[];
@@ -89,9 +103,9 @@ export async function executeExaSearch(
     options.abortMessage,
   );
 
-  const providerResults = response.results as Array<
-    ExaResearchResult & { highlights?: string[] }
-  >;
+  const providerResults = z
+    .array(exaResearchResultSchema)
+    .parse(response.results);
   return {
     providerResultCount: providerResults.length,
     results: providerResults

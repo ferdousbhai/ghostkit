@@ -265,10 +265,16 @@ export interface CreateGrokXResearchToolOptions {
 export async function runNativeXSearch(
   options: RunNativeXSearchOptions,
 ): Promise<NativeXSearchRun> {
-  const maximumItems = Math.min(
-    Math.max(1, options.maxItems ?? X_SEARCH_MAX_RESULTS),
-    X_SEARCH_MAX_RESULTS,
-  );
+  const maximumItems = options.maxItems ?? X_SEARCH_MAX_RESULTS;
+  if (
+    !Number.isSafeInteger(maximumItems) ||
+    maximumItems < 1 ||
+    maximumItems > X_SEARCH_MAX_RESULTS
+  ) {
+    throw new Error(
+      `maxItems must be a positive safe integer no greater than ${X_SEARCH_MAX_RESULTS}`,
+    );
+  }
   const abortSignal = withTimeout(options.abortSignal, options.timeoutMs);
   const result = await generateText({
     abortSignal,

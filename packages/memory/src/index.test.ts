@@ -53,13 +53,18 @@ describe("@summonghost/memory", () => {
     ).toEqual(["Likes tea.", "Uses metric units."]);
     expect(
       parseMemoryBlock(
-        JSON.stringify([
-          "Likes tea.",
-          { key: "Units", value: "metric" },
-          { invalid: true },
-        ]),
+        JSON.stringify(["Likes tea.", { key: "Units", value: "metric" }]),
       ),
     ).toEqual(["Likes tea.", "Units: metric"]);
+  });
+
+  it("rejects malformed legacy JSON without dropping corrupt entries", () => {
+    expect(() =>
+      parseMemoryBlock(JSON.stringify(["Likes tea.", { invalid: true }])),
+    ).toThrow("Invalid legacy JSON memory item at index 1");
+    expect(() => parseMemoryBlock('["Likes tea."')).toThrow(
+      "Invalid legacy JSON memory block",
+    );
   });
 
   it("merges memory entries case-insensitively and keeps the latest spelling", () => {

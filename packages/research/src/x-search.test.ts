@@ -62,6 +62,19 @@ describe("Grok native X research", () => {
     );
   });
 
+  it("rejects invalid result limits instead of clamping them", async () => {
+    await expect(
+      runNativeXSearch({
+        maxItems: 0,
+        model: { modelId: "grok-4.5" } as never,
+        prompt: "Search X.",
+      }),
+    ).rejects.toThrow(
+      "maxItems must be a positive safe integer no greater than 60",
+    );
+    expect(generateTextMock).not.toHaveBeenCalled();
+  });
+
   it("creates a non-terminal tool that returns Grok research to the primary model", async () => {
     generateTextMock.mockResolvedValue({
       text: "X users are discussing durable agent recovery.",

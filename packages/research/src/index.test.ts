@@ -206,7 +206,10 @@ describe("research result helpers", () => {
                   author: "ghost",
                   created_utc: 1,
                   id: "post-1",
+                  num_comments: 3,
                   permalink: "/r/cloudflare/comments/post-1/example",
+                  score: 7,
+                  selftext: "Example body",
                   subreddit: "cloudflare",
                   title: "Example",
                 },
@@ -223,6 +226,40 @@ describe("research result helpers", () => {
         url: "https://www.reddit.com/r/cloudflare/comments/post-1/example",
       }),
     ]);
+  });
+
+  it("rejects malformed provider results instead of inventing data", async () => {
+    const search = vi.fn().mockResolvedValue({
+      results: [{ title: "Missing URL" }],
+    });
+    await expect(
+      executeExaSearch({ search } as never, "agents", {}),
+    ).rejects.toThrow();
+
+    expect(() =>
+      parseRedditSearchResults(
+        {
+          data: {
+            children: [
+              {
+                data: {
+                  author: "ghost",
+                  created_utc: 1,
+                  id: "post-1",
+                  permalink: "/r/example/comments/post-1/example",
+                  subreddit: "example",
+                  title: "Missing metrics",
+                },
+              },
+            ],
+          },
+        },
+        1,
+      ),
+    ).toThrow();
+    expect(() =>
+      parseRedditSearchResults({ data: { children: [] } }, -1),
+    ).toThrow("Reddit result limit must be a non-negative safe integer");
   });
 
   it("filters malformed and known abusive results", () => {

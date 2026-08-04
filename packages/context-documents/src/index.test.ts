@@ -26,6 +26,10 @@ describe("@summonghost/context-documents", () => {
     expect(extractMarkdownDescription("# Title\n\nA long description", 8)).toBe(
       "A long…",
     );
+    expect(extractMarkdownDescription(markdown, 0)).toBe("");
+    expect(() => extractMarkdownDescription(markdown, Number.NaN)).toThrow(
+      "maximumCharacters must be a non-negative safe integer",
+    );
   });
 
   it("renders bounded metadata separately from a full document", () => {

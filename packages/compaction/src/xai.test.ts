@@ -251,4 +251,33 @@ describe("xAI native response helpers", () => {
       totalTokens: 1_050,
     });
   });
+
+  it("rejects malformed optional native usage instead of coercing it", () => {
+    const usage = {
+      input_tokens: 1_000,
+      output_tokens: 50,
+      total_tokens: 1_050,
+    };
+
+    expect(
+      parseXaiNativeUsage({
+        ...usage,
+        input_tokens_details: { cached_tokens: "unknown" },
+      }),
+    ).toBeNull();
+    expect(
+      parseXaiNativeUsage({
+        ...usage,
+        num_server_side_tools_used: -1,
+      }),
+    ).toBeNull();
+    expect(
+      parseXaiNativeUsage({ ...usage, cost_in_usd_ticks: 1.5 }),
+    ).toBeNull();
+    expect(parseXaiNativeUsage(usage)).toMatchObject({
+      cacheReadInputTokens: 0,
+      costUsdTicks: null,
+      serverSideToolCalls: 0,
+    });
+  });
 });

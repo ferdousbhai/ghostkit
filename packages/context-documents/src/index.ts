@@ -43,11 +43,14 @@ export function extractMarkdownDescription(
   content: string,
   maximumCharacters = 240,
 ): string {
+  if (!Number.isSafeInteger(maximumCharacters) || maximumCharacters < 0) {
+    throw new Error("maximumCharacters must be a non-negative safe integer");
+  }
   const prose = normalizeMarkdown(content)
     .split(/\n\s*\n/)
     .map((block) => block.trim())
     .find((block) => block && !/^(?:#{1,6}\s|[-*+]\s|```|>\s)/.test(block));
-  if (!prose || maximumCharacters <= 0) return "";
+  if (!prose || maximumCharacters === 0) return "";
   const plain = prose
     .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
     .replace(/[*_~`]/g, "")

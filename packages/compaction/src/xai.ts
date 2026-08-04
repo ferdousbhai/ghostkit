@@ -216,22 +216,40 @@ export function parseXaiNativeUsage(value: unknown): XaiNativeUsage | null {
   const inputTokens = readNonNegativeSafeInteger(usage.input_tokens);
   const outputTokens = readNonNegativeSafeInteger(usage.output_tokens);
   const totalTokens = readNonNegativeSafeInteger(usage.total_tokens);
+  const inputTokenDetails =
+    usage.input_tokens_details === undefined
+      ? null
+      : asRecord(usage.input_tokens_details);
+  const cacheReadInputTokens = readOptionalNonNegativeSafeInteger(
+    inputTokenDetails?.cached_tokens,
+    0,
+  );
+  const costUsdTicks = readOptionalNonNegativeSafeInteger(
+    usage.cost_in_usd_ticks,
+    null,
+  );
+  const serverSideToolCalls = readOptionalNonNegativeSafeInteger(
+    usage.num_server_side_tools_used,
+    0,
+  );
   if (
     inputTokens === null ||
     outputTokens === null ||
     totalTokens === null ||
+    (usage.input_tokens_details !== undefined && !inputTokenDetails) ||
+    cacheReadInputTokens === null ||
+    (usage.cost_in_usd_ticks !== undefined && costUsdTicks === null) ||
+    serverSideToolCalls === null ||
     totalTokens !== saturatingAdd(inputTokens, outputTokens)
   ) {
     return null;
   }
   return {
-    cacheReadInputTokens: asNonNegativeInteger(
-      asRecord(usage.input_tokens_details)?.cached_tokens,
-    ),
-    costUsdTicks: readNonNegativeIntegerOrNull(usage.cost_in_usd_ticks),
+    cacheReadInputTokens,
+    costUsdTicks,
     inputTokens,
     outputTokens,
-    serverSideToolCalls: asNonNegativeInteger(usage.num_server_side_tools_used),
+    serverSideToolCalls,
     totalTokens,
   };
 }
@@ -250,16 +268,11 @@ function asInputItems(value: unknown): XaiResponsesInputItem[] | null {
     : null;
 }
 
-function asNonNegativeInteger(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(0, Math.trunc(value))
-    : 0;
-}
-
-function readNonNegativeIntegerOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0
-    ? Math.trunc(value)
-    : null;
+function readOptionalNonNegativeSafeInteger<T extends number | null>(
+  value: unknown,
+  missingValue: T,
+): number | T | null {
+  return value === undefined ? missingValue : readNonNegativeSafeInteger(value);
 }
 
 function serializedByteLength(value: unknown): number {

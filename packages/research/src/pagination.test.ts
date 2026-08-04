@@ -86,6 +86,27 @@ describe("research pagination cache", () => {
       "pagination cache namespace is required",
     );
   });
+
+  it("rejects non-JSON cache-key values instead of collapsing them", () => {
+    expect(() => stablePaginationKey("search", { value: undefined })).toThrow(
+      "pagination cache inputs must be JSON values",
+    );
+    expect(() => stablePaginationKey("search", { value: Number.NaN })).toThrow(
+      "pagination cache inputs must contain finite numbers",
+    );
+    expect(() => stablePaginationKey("search", { value: new Date() })).toThrow(
+      "pagination cache inputs must contain plain objects",
+    );
+    expect(() => stablePaginationKey("search", { value: Array(1) })).toThrow(
+      "pagination cache inputs must not contain array holes",
+    );
+
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(() => stablePaginationKey("search", cyclic)).toThrow(
+      "pagination cache inputs must not be cyclic",
+    );
+  });
 });
 
 describe("text pagination", () => {
@@ -129,6 +150,12 @@ describe("text pagination", () => {
 
   it("rejects invalid page limits", () => {
     expect(() => paginateText("hello", { maxCharacters: 0 })).toThrow(
+      "maxCharacters must be a positive safe integer",
+    );
+    expect(() =>
+      paginateText("hello", { contentStart: -1, maxCharacters: 1 }),
+    ).toThrow("contentStart must be a non-negative safe integer");
+    expect(() => paginateText("hello", { maxCharacters: 1.5 })).toThrow(
       "maxCharacters must be a positive safe integer",
     );
   });

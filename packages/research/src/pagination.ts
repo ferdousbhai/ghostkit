@@ -38,7 +38,7 @@ export function stablePaginationKey(
   if (!normalizedNamespace) {
     throw new Error("pagination cache namespace is required");
   }
-  return `${normalizedNamespace}:${stableJsonStringify(input)}`;
+  return `${normalizedNamespace}:${stableJsonStringify(input, new WeakSet())}`;
 }
 
 /**
@@ -135,19 +135,22 @@ export function paginateText(
   }>,
 ): TextPage {
   const requestedLimit = positiveSafeInteger(
-    Math.floor(input.maxCharacters),
+    input.maxCharacters,
     "maxCharacters",
   );
   const maximumLimit =
     input.maximumPageCharacters === undefined
       ? requestedLimit
       : positiveSafeInteger(
-          Math.floor(input.maximumPageCharacters),
+          input.maximumPageCharacters,
           "maximumPageCharacters",
         );
   const limit = Math.min(requestedLimit, maximumLimit);
-  const requestedStart = Math.floor(input.contentStart ?? 0);
-  const start = Math.min(Math.max(0, requestedStart), text.length);
+  const requestedStart = nonNegativeSafeInteger(
+    input.contentStart ?? 0,
+    "contentStart",
+  );
+  const start = Math.min(requestedStart, text.length);
   const end = Math.min(text.length, start + limit);
   return {
     content: text.slice(start, end),
@@ -162,18 +165,53 @@ export function paginateText(
   };
 }
 
-function stableJsonStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") {
-    return JSON.stringify(value) ?? "null";
+function stableJsonStringify(
+  value: unknown,
+  ancestors: WeakSet<object>,
+): string {
+  if (value === null) return "null";
+  if (typeof value === "string" || typeof value === "boolean") {
+    return JSON.stringify(value);
   }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("pagination cache inputs must contain finite numbers");
+    }
+    return JSON.stringify(value);
+  }
+  if (typeof value !== "object") {
+    throw new Error("pagination cache inputs must be JSON values");
+  }
+  if (ancestors.has(value)) {
+    throw new Error("pagination cache inputs must not be cyclic");
+  }
+  ancestors.add(value);
+  let serialized: string;
   if (Array.isArray(value)) {
-    return `[${value.map(stableJsonStringify).join(",")}]`;
+    const items: string[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      if (!(index in value)) {
+        throw new Error("pagination cache inputs must not contain array holes");
+      }
+      items.push(stableJsonStringify(value[index], ancestors));
+    }
+    serialized = `[${items.join(",")}]`;
+  } else {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new Error("pagination cache inputs must contain plain objects");
+    }
+    const record = value as Record<string, unknown>;
+    serialized = `{${Object.keys(record)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${stableJsonStringify(record[key], ancestors)}`,
+      )
+      .join(",")}}`;
   }
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableJsonStringify(record[key])}`)
-    .join(",")}}`;
+  ancestors.delete(value);
+  return serialized;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -185,6 +223,13 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function positiveSafeInteger(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 1) {
     throw new Error(`${name} must be a positive safe integer`);
+  }
+  return value;
+}
+
+function nonNegativeSafeInteger(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative safe integer`);
   }
   return value;
 }

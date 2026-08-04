@@ -158,19 +158,26 @@ export function parseMemoryBlock(
   const trimmed = content?.trim();
   if (!trimmed) return [];
 
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (Array.isArray(parsed)) {
-      return mergeMemoryEntries(
-        parsed.flatMap((item) => {
-          const line = parseJsonMemoryItem(item);
-          return line ? [line] : [];
-        }),
-        [],
-      );
+    parsed = JSON.parse(trimmed) as unknown;
+  } catch (cause) {
+    if (trimmed.startsWith("[")) {
+      throw new Error("Invalid legacy JSON memory block", { cause });
     }
-  } catch {
     // Plain text is the normal writable-context format.
+  }
+  if (Array.isArray(parsed)) {
+    return mergeMemoryEntries(
+      parsed.map((item, index) => {
+        const line = parseJsonMemoryItem(item);
+        if (!line) {
+          throw new Error(`Invalid legacy JSON memory item at index ${index}`);
+        }
+        return line;
+      }),
+      [],
+    );
   }
 
   return mergeMemoryEntries(
