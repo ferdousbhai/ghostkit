@@ -1,5 +1,10 @@
 # Ghostkit
 
+> **Archived:** Package source moved to the
+> [`ferdousbhai/ghosts`](https://github.com/ferdousbhai/ghosts) monorepo under
+> `packages/`. Existing npm releases remain available under the same
+> `@summonghost/*` names. Do not open package changes here.
+
 Reusable TypeScript packages for Cloudflare AI applications. Applications
 bundle these packages into their own Worker; there is no shared runtime service
 or network hop.
@@ -19,6 +24,8 @@ or network hop.
   provider-neutral small-model prompt construction and output validation.
 - `@summonghost/context-documents` — pure Markdown normalization, metadata,
   prompt-formatting, and revision-reconciliation helpers.
+- `@summonghost/feedback-context` — provider-neutral helpers for bounded,
+  reviewable feedback overlays.
 - `@summonghost/markdown-editor-react` — a small lazy-loaded Milkdown React
   editor with scoped, variable-driven styles.
 
@@ -35,8 +42,8 @@ Install only the packages an application needs:
 pnpm add @summonghost/memory @summonghost/compaction @summonghost/title-generation
 ```
 
-The packages are published from this repository through npm trusted publishing.
-Each consumer bundles the imported code into its own Cloudflare Worker.
+Package publication from this repository is disabled. Each consumer bundles the
+imported code into its own Cloudflare Worker.
 
 ## Execution boundary
 
